@@ -1,0 +1,90 @@
+name: Release (Windows + Linux)
+
+# Builds Windows and Linux installers when you push a version tag (e.g. v0.1.0)
+# and attaches them to the GitHub Release for that tag.
+#
+# macOS is built locally on your Mac and uploaded to the SAME release, so a
+# single release ends up with .dmg (mac) + .exe/.msi (windows) + .AppImage/.deb.
+#
+# No macOS runner is used here, so this stays within the free allowance (and is
+# free with no limit on public repositories).
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+permissions:
+  contents: write # needed to create/update the release
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ""
+          - platform: ubuntu-22.04
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
+            patchelf nasm
+
+      - name: Install NASM (Windows, for OpenH264)
+        if: matrix.platform == 'windows-latest'
+        uses: ilammy/setup-nasm@v1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install frontend deps
+        run: npm install
+
+      - name: Bundle CLI binaries (adb/fastboot/scrcpy)
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            bash scripts/fetch-binaries.sh win
+          else
+            bash scripts/fetch-binaries.sh linux
+          fi
+
+      - name: Build + attach to release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Reuse the tag's release so mac + windows + linux land together.
+          tagName: ${{ github.ref_name }}
+          releaseName: "Droidbench ${{ github.ref_name }}"
+          releaseBody: |
+            Droidbench ${{ github.ref_name }}
+
+            - macOS: Droidbench_*.dmg (uploaded from local build)
+            - Windows: Droidbench_*_x64-setup.exe / *.msi
+            - Linux: Droidbench_*.AppImage / *.deb
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

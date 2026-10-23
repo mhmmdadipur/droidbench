@@ -84,6 +84,22 @@ Tauri cannot cross-compile desktop apps — build the Windows installer on
 Windows (run `scripts/fetch-binaries.sh win` first) and the macOS bundle on
 macOS.
 
+## Releases (hybrid: local macOS + CI Windows/Linux, one release)
+
+To save CI minutes (the macOS runner costs 10× minutes), macOS is built locally
+and Windows/Linux are built by GitHub Actions — all into **one** release:
+
+1. Bump `version` in `src-tauri/tauri.conf.json`.
+2. On your Mac: `bash scripts/release-mac.sh` → produces the `.dmg`.
+3. `git tag vX.Y.Z && git push origin vX.Y.Z` → the
+   [`release.yml`](.github/workflows/release.yml) workflow builds Windows + Linux
+   and creates the GitHub Release for that tag.
+4. Upload the local `.dmg` to that same release (web UI, or `gh release upload vX.Y.Z <dmg>`).
+
+The release then contains `.dmg` (mac) + `.exe`/`.msi` (windows) +
+`.AppImage`/`.deb` (linux). On a **public repo**, GitHub Actions is free, and no
+macOS runner is used.
+
 ## Project layout
 
 ```
