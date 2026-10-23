@@ -1,33 +1,63 @@
-# Droidbench
+<div align="center">
 
-A fresh, native desktop toolbox for Android flashing, servicing, debloat **and
-live screen mirroring** — for **macOS and Windows** from a single codebase.
-Built with **Tauri 2 + React 19 + Tailwind v4**. CLI tools (adb / fastboot /
-heimdall / payload-dumper / scrcpy) are **bundled**, so you can copy the app to
-another laptop and just click.
+# 🤖 Droidbench
 
-## Highlights
+### Satu aplikasi desktop untuk semua urusan oprek Android — ramah pemula.
 
-- **macOS traffic-light window** (red / yellow / green) on both macOS and
-  Windows. Light, airy UI with a teal accent and rounded window corners.
-- **Device status** card with auto polling + a **Tools** bar showing whether
-  each CLI is bundled / from system / missing.
-- **Big searchable command log** on the right: search, errors-only filter,
-  auto-scroll, cancel & clear.
-- **Embedded live mirror** — mirrors the device screen *inside its own
-  Droidbench window*, with an on-screen control panel. H.264 is decoded in Rust
-  (OpenH264), so it does **not** depend on the WebView's codec support.
+Flashing · Servicing · Debloat · **Cermin Layar (Live Mirror)** — untuk
+**macOS & Windows** dari satu codebase.
+Dibangun dengan **Tauri 2 + React 19 + Tailwind v4**. Tool CLI (adb · fastboot ·
+heimdall · payload-dumper · **scrcpy**) sudah **dibundel** — tinggal copy ke
+laptop lain dan klik.
 
-## Tabs
+![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-stable-DEA584?logo=rust&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-6E56CF)
+![License](https://img.shields.io/badge/License-MIT-10B981)
 
-| Tab | What it does |
-|-----|--------------|
-| **ADB** | start/kill server, reboot system/recovery/fastboot/sideload, sideload ZIP, **Start Mirroring**, list devices, dump props |
-| **Fastboot** | getvar, flash boot/recovery/init_boot/vendor_boot/vbmeta, temp-boot, A/B slot, dis-verity/dis-vbmeta, unlock/lock |
-| **Xiaomi** | pick firmware folder, run flash_all scripts, Mi Unlock notes |
-| **Samsung (Heimdall)** | detect, print-pit, BL/AP/CP/CSC/HOME/PIT slots, no-reboot/repartition, flash |
-| **Dumper** | extract partition images from an A/B OTA `payload.bin` / ZIP |
-| **Debloat** | Xiaomi / Universal (25 brands) / Android TV package databases, applied over ADB with reversible `pm disable-user` |
+</div>
+
+---
+
+<div align="center">
+
+### 🖥️ Tampilan Utama — 3 kolom lega: navigasi · panel tool · log
+
+<img src="docs/screenshot-main.png" alt="Droidbench — main window" width="860" />
+
+### 📱 Cermin Layar (Live Mirror) — layar HP real-time + panel kontrol dalam satu window
+
+<img src="docs/screenshot-mirror.png" alt="Droidbench Mirror" width="520" />
+
+</div>
+
+---
+
+## ✨ Sorotan
+
+- 🟢 **Window ber-traffic-light ala macOS** (merah/kuning/hijau) di macOS *dan*
+  Windows. UI terang, segar, aksen teal, sudut membulat.
+- 📊 **Status perangkat** otomatis + bar **Tools** yang menunjukkan tiap CLI
+  bundled / dari sistem / belum ada.
+- 📜 **Command log besar** dengan pencarian, filter error, auto-scroll.
+- 📱 **Live mirror tertanam** — layar HP tampil & bisa dikontrol *di dalam
+  window Droidbench sendiri*. H.264 di-decode di Rust (OpenH264), jadi **tidak
+  bergantung** pada dukungan codec WebView.
+- 🧭 **Ramah pemula** — tiap tab ada penjelasan, tiap tombol ada tooltip Bahasa
+  Indonesia yang menjelaskan fungsinya.
+- 🔄 **Auto-update** bawaan (lihat bagian Auto-update).
+
+## 🧰 Tab
+
+| Tab | Fungsi |
+|-----|--------|
+| **ADB** | start/kill server, reboot system/recovery/fastboot/sideload, pasang ZIP, **Cermin Layar**, daftar perangkat |
+| **Fastboot** | getvar, flash boot/recovery/init_boot/vendor_boot/vbmeta, temp-boot, slot A/B, dis-verity/vbmeta, unlock/lock |
+| **Xiaomi** | pilih folder firmware, jalankan flash_all, info Mi Unlock |
+| **Samsung (Heimdall)** | detect, print-pit, slot BL/AP/CP/CSC/HOME/PIT, no-reboot/repartition, flash |
+| **Dumper** | ekstrak image partisi dari OTA `payload.bin` / ZIP |
+| **Debloat** | database paket Xiaomi / Universal (25 merek) / Android TV, diterapkan via ADB `pm disable-user` yang reversible |
 
 ## Live mirror
 
