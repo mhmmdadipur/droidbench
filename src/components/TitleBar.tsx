@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getVersion } from "@tauri-apps/api/app";
+import { checkForUpdate, installUpdate } from "../lib/updater";
 import { useDevice } from "../state/device";
 
 const appWindow = getCurrentWindow();
@@ -35,6 +38,28 @@ function Light({
 
 export function TitleBar() {
   const { device } = useDevice();
+  const [version, setVersion] = useState("");
+  const [update, setUpdate] = useState<Awaited<ReturnType<typeof checkForUpdate>>>(null);
+  const [updating, setUpdating] = useState(false);
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => {});
+    // check for updates shortly after launch (non-blocking)
+    const t = setTimeout(() => {
+      checkForUpdate().then(setUpdate).catch(() => {});
+    }, 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  async function doUpdate() {
+    if (!update || updating) return;
+    setUpdating(true);
+    try {
+      await installUpdate(update._handle);
+    } catch {
+      setUpdating(false);
+    }
+  }
 
   return (
     <div
@@ -74,6 +99,21 @@ export function TitleBar() {
         <span className="text-[13px] font-semibold tracking-tight text-[var(--color-ink)]">
           Droidbench
         </span>
+        {version && (
+          <span className="rounded-md bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-ink-faint)]">
+            v{version}
+          </span>
+        )}
+        {update && (
+          <button
+            onClick={doUpdate}
+            disabled={updating}
+            title={`Update to v${update.version}`}
+            className="no-drag rounded-md bg-[var(--color-brand)] px-1.5 py-0.5 text-[10px] font-semibold text-white hover:bg-[var(--color-brand-600)] disabled:opacity-60"
+          >
+            {updating ? "Updating…" : `Update → v${update.version}`}
+          </button>
+        )}
       </div>
 
       {/* right: live device chip */}

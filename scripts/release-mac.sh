@@ -1,34 +1,44 @@
 #!/usr/bin/env bash
-# Build the macOS release locally and tell you how to attach it to the SAME
-# GitHub Release that the Windows/Linux CI builds into.
+# Build the SIGNED macOS release locally and attach it to the same GitHub
+# Release that CI builds Windows/Linux into — so one release has every platform
+# AND the updater works on macOS too.
 #
-# Flow for a single combined release:
-#   1) bump the version in src-tauri/tauri.conf.json (e.g. 0.1.0)
-#   2) run this script on your Mac            -> produces the .dmg
+# Prereq (once): you have the updater private key at
+#   ~/.droidbench-keys/droidbench.key
+#
+# Flow:
+#   1) bump version in src-tauri/tauri.conf.json
+#   2) bash scripts/release-mac.sh        -> signed .dmg + .app.tar.gz + .sig
 #   3) git tag vX.Y.Z && git push origin vX.Y.Z
-#        -> GitHub Actions builds Windows + Linux and creates the release
-#   4) upload the .dmg from step 2 to that release (web UI, or `gh release upload`)
-#
-# All artifacts (mac .dmg + win .exe/.msi + linux .AppImage/.deb) then live in
-# one release.
+#        -> CI builds Windows+Linux, creates the release, writes latest.json
+#   4) upload the macOS .dmg AND .app.tar.gz(.sig) to that release
+#   5) merge the macOS entry into latest.json (see scripts/merge-latest-json.md)
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+KEY="${TAURI_SIGNING_PRIVATE_KEY_PATH:-$HOME/.droidbench-keys/droidbench.key}"
+if [ ! -f "$KEY" ]; then
+  echo "ERROR: updater private key not found at $KEY"
+  echo "Generate once with: npm run tauri signer generate -- -w $KEY --password ''"
+  exit 1
+fi
+
+export TAURI_SIGNING_PRIVATE_KEY="$(cat "$KEY")"
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}"
 
 echo "==> Fetching bundled binaries for macOS"
 bash scripts/fetch-binaries.sh mac
 
-echo "==> Building macOS bundle"
+echo "==> Building + signing macOS bundle"
 npm run tauri build
 
-DMG=$(ls -t src-tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -1 || true)
+BUNDLE="src-tauri/target/release/bundle"
 echo
-if [ -n "$DMG" ]; then
-  echo "macOS DMG ready: $DMG"
-  echo
-  echo "Attach it to the release created by CI:"
-  echo "  • Web:  GitHub → Releases → <tag> → Edit → drag the .dmg"
-  echo "  • CLI:  gh release upload <tag> \"$DMG\""
-else
-  echo "DMG not found (dmg packaging can fail transiently; the .app is still in"
-  echo "src-tauri/target/release/bundle/macos/). Re-run, or zip the .app to upload."
-fi
+echo "macOS artifacts:"
+ls -1 "$BUNDLE/dmg/"*.dmg 2>/dev/null || true
+ls -1 "$BUNDLE/macos/"*.app.tar.gz 2>/dev/null || true
+ls -1 "$BUNDLE/macos/"*.app.tar.gz.sig 2>/dev/null || true
+echo
+echo "Next:"
+echo "  gh release upload <tag> $BUNDLE/dmg/*.dmg $BUNDLE/macos/*.app.tar.gz $BUNDLE/macos/*.app.tar.gz.sig"
+echo "  then merge the macOS entry into latest.json (see scripts/merge-latest-json.md)"

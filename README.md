@@ -100,6 +100,50 @@ The release then contains `.dmg` (mac) + `.exe`/`.msi` (windows) +
 `.AppImage`/`.deb` (linux). On a **public repo**, GitHub Actions is free, and no
 macOS runner is used.
 
+## Auto-update
+
+Droidbench uses Tauri's built-in updater. On launch it checks
+`https://github.com/mhmmdadipur/droidbench/releases/latest/download/latest.json`;
+if a newer **signed** version exists, an **Update → vX.Y.Z** button appears next
+to the version label. Clicking it downloads, verifies the signature, installs,
+and relaunches.
+
+- **macOS / Windows**: silent download + install + restart.
+- **Linux (AppImage)**: the AppImage is replaced in place.
+
+### One-time setup (signing keys)
+
+The updater only installs **signed** packages. Generate a keypair once:
+
+```bash
+npm run tauri signer generate -- -w ~/.droidbench-keys/droidbench.key --password ''
+```
+
+- The **public key** is already embedded in `src-tauri/tauri.conf.json`
+  (`plugins.updater.pubkey`). If you regenerate, update it.
+- The **private key** signs releases. Keep it secret (never commit it). Add it
+  to the repo's **GitHub secrets** for CI:
+  - `TAURI_SIGNING_PRIVATE_KEY` = contents of `~/.droidbench-keys/droidbench.key`
+  - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` = the password (empty here)
+
+### Publishing an update (hybrid)
+
+1. Bump `version` in `src-tauri/tauri.conf.json`.
+2. `bash scripts/release-mac.sh` → signed macOS `.dmg` + `.app.tar.gz` + `.sig`.
+3. `git tag vX.Y.Z && git push origin vX.Y.Z` → CI builds Windows/Linux and
+   writes `latest.json` (win+linux) to the release.
+4. Upload the macOS `.dmg`, `.app.tar.gz`, and `.app.tar.gz.sig` to that release.
+5. Merge the macOS entry into `latest.json`:
+   ```bash
+   node scripts/merge-latest-json.mjs latest.json \
+     src-tauri/target/release/bundle/macos/Droidbench.app.tar.gz.sig \
+     https://github.com/mhmmdadipur/droidbench/releases/download/vX.Y.Z/Droidbench.app.tar.gz \
+     > latest.merged.json
+   ```
+   Re-upload `latest.merged.json` as `latest.json` on the release.
+
+Now every platform auto-updates from one release.
+
 ## Project layout
 
 ```
