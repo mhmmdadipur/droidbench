@@ -149,7 +149,7 @@ export function DebloatTab() {
         <Button size="sm" className="flex-1" title="Centang otomatis semua aplikasi yang aman & masih aktif di HP." onClick={selectAllPresent}>
           Pilih semua
         </Button>
-        <Button size="sm" variant="ghost" title="Hapus semua centang." onClick={() => setSelected(new Set())}>
+        <Button size="sm" variant="danger" title="Hapus semua centang." onClick={() => setSelected(new Set())}>
           Reset
         </Button>
       </div>

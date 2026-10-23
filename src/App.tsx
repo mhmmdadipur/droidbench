@@ -29,13 +29,13 @@ import { MirrorProvider } from "./state/mirror";
 
 type TabId = "adb" | "fastboot" | "xiaomi" | "samsung" | "dumper" | "debloat";
 
-const TABS: { id: TabId; label: string; icon: typeof Smartphone }[] = [
-  { id: "adb", label: "ADB", icon: Smartphone },
-  { id: "fastboot", label: "Fastboot", icon: Zap },
-  { id: "xiaomi", label: "Xiaomi", icon: Boxes },
-  { id: "samsung", label: "Samsung", icon: PackageOpen },
-  { id: "dumper", label: "Dumper", icon: Download },
-  { id: "debloat", label: "Debloat", icon: Trash2 },
+const TABS: { id: TabId; label: string; icon: typeof Smartphone; desc: string }[] = [
+  { id: "adb", label: "ADB", icon: Smartphone, desc: "Cermin layar, reboot, update" },
+  { id: "fastboot", label: "Fastboot", icon: Zap, desc: "Flash & buka bootloader" },
+  { id: "xiaomi", label: "Xiaomi", icon: Boxes, desc: "Flash firmware MIUI/HyperOS" },
+  { id: "samsung", label: "Samsung", icon: PackageOpen, desc: "Flash via Odin/Heimdall" },
+  { id: "dumper", label: "Dumper", icon: Download, desc: "Ekstrak isi OTA/payload" },
+  { id: "debloat", label: "Debloat", icon: Trash2, desc: "Nonaktifkan bloatware" },
 ];
 
 function TabContent({ tab }: { tab: TabId }) {
@@ -115,31 +115,56 @@ function Shell() {
       <TitleBar />
 
       <div className="flex min-h-0 flex-1 gap-3 p-3">
-        {/* COLUMN 1 — status + navigation (slim) */}
-        <div className="flex w-[210px] shrink-0 flex-col gap-3">
+        {/* COLUMN 1 — status + navigation */}
+        <div className="flex w-[244px] shrink-0 flex-col gap-3">
           <DeviceStatus />
           <ToolsBar />
 
-          {/* vertical tab bar (one per row, roomy) */}
-          <div className="flex flex-col gap-1">
-            {TABS.map((tb) => {
-              const Icon = tb.icon;
-              const active = tab === tb.id;
-              return (
-                <button
-                  key={tb.id}
-                  onClick={() => setTab(tb.id)}
-                  className={`no-drag flex items-center gap-2.5 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors ${
-                    active
-                      ? "border-[var(--color-brand)] bg-[var(--color-brand-50)] text-[var(--color-brand-600)]"
-                      : "border-transparent text-[var(--color-ink-soft)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]"
-                  }`}
-                >
-                  <Icon size={16} className="shrink-0" />
-                  {tb.label}
-                </button>
-              );
-            })}
+          {/* vertical tab bar with label + description */}
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-sm">
+            <div className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+              Tools
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {TABS.map((tb) => {
+                const Icon = tb.icon;
+                const active = tab === tb.id;
+                return (
+                  <button
+                    key={tb.id}
+                    onClick={() => setTab(tb.id)}
+                    title={tb.desc}
+                    className={`no-drag flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${
+                      active
+                        ? "bg-[var(--color-brand-50)]"
+                        : "hover:bg-[var(--color-surface-2)]"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                        active
+                          ? "bg-[var(--color-brand)] text-white"
+                          : "bg-[var(--color-surface-2)] text-[var(--color-ink-soft)]"
+                      }`}
+                    >
+                      <Icon size={16} />
+                    </span>
+                    <span className="min-w-0">
+                      <span
+                        className={`block text-[13px] font-semibold leading-tight ${
+                          active ? "text-[var(--color-brand-600)]" : "text-[var(--color-ink)]"
+                        }`}
+                      >
+                        {tb.label}
+                      </span>
+                      <span className="block truncate text-[10.5px] leading-tight text-[var(--color-ink-faint)]">
+                        {tb.desc}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="mt-auto">
@@ -148,7 +173,7 @@ function Shell() {
         </div>
 
         {/* COLUMN 2 — active tab content (roomy, no nested scroll cramping) */}
-        <div className="flex w-[320px] shrink-0 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
+        <div className="flex w-[330px] shrink-0 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
           <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
             {activeTab && <activeTab.icon size={16} className="text-[var(--color-brand-600)]" />}
             <span className="text-[13px] font-semibold text-[var(--color-ink)]">
