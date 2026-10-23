@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/Button";
+import { TabHelp } from "../ui/Section";
 import {
   listDisabledPackages,
   listInstalledPackages,
@@ -115,11 +116,20 @@ export function DebloatTab() {
 
   return (
     <>
+      <TabHelp>
+        Menonaktifkan aplikasi bawaan (bloatware) agar HP lebih ringan & hemat
+        baterai — <b>tanpa root</b> dan <b>bisa dibatalkan</b> (cuma dinonaktifkan,
+        bukan dihapus). Pilih database sesuai merek, centang aplikasi, lalu
+        Nonaktifkan. Mode simulasi di bawah menampilkan apa yang akan terjadi
+        tanpa mengubah apa pun.
+      </TabHelp>
+
       {/* DB selector */}
       <div className="mb-3 flex gap-1 rounded-lg bg-[var(--color-surface-2)] p-1">
         {DB_TABS.map((d) => (
           <button
             key={d.id}
+            title={`Daftar aplikasi bawaan untuk ${d.label}`}
             onClick={() => setDbId(d.id)}
             className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
               dbId === d.id
@@ -133,25 +143,28 @@ export function DebloatTab() {
       </div>
 
       <div className="mb-3 flex gap-2">
-        <Button size="sm" className="flex-1" onClick={refreshStatus}>
-          Scan device
+        <Button size="sm" className="flex-1" title="Periksa HP: tandai aplikasi mana yang masih aktif / sudah off / tidak ada." onClick={refreshStatus}>
+          Scan HP
         </Button>
-        <Button size="sm" className="flex-1" onClick={selectAllPresent}>
-          Select all present
+        <Button size="sm" className="flex-1" title="Centang otomatis semua aplikasi yang aman & masih aktif di HP." onClick={selectAllPresent}>
+          Pilih semua
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-          Clear
+        <Button size="sm" variant="ghost" title="Hapus semua centang." onClick={() => setSelected(new Set())}>
+          Reset
         </Button>
       </div>
 
-      <label className="mb-2 flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">
+      <label
+        className="mb-2 flex items-center gap-2 text-sm text-[var(--color-ink-soft)]"
+        title="Jika dicentang, tombol Nonaktifkan HANYA menampilkan daftar di log tanpa benar-benar mengubah HP. Matikan untuk benar-benar menonaktifkan."
+      >
         <input
           type="checkbox"
           checked={dryRun}
           onChange={(e) => setDryRun(e.target.checked)}
           className="accent-[var(--color-brand)]"
         />
-        Simulation mode (dry-run, no changes)
+        Mode simulasi (dry-run, tidak mengubah HP)
       </label>
 
       {/* package list */}
@@ -199,11 +212,21 @@ export function DebloatTab() {
       </div>
 
       <div className="flex gap-2">
-        <Button variant="danger" className="flex-1" onClick={() => apply(false)}>
-          Disable selected
+        <Button
+          variant="danger"
+          className="flex-1"
+          title="Nonaktifkan aplikasi yang dicentang (bisa dipulihkan lagi kapan saja)."
+          onClick={() => apply(false)}
+        >
+          Nonaktifkan
         </Button>
-        <Button variant="success" className="flex-1" onClick={() => apply(true)}>
-          Restore selected
+        <Button
+          variant="success"
+          className="flex-1"
+          title="Aktifkan kembali aplikasi yang dicentang (kembalikan seperti semula)."
+          onClick={() => apply(true)}
+        >
+          Pulihkan
         </Button>
       </div>
 

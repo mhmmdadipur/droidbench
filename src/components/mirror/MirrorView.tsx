@@ -238,33 +238,33 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
           )}
 
           <Group title="Device">
-            <Ctrl icon={Power} label="Power" onClick={() => mirrorKeycode(KEY.POWER)} />
-            <Ctrl icon={RotateCcw} label="Restart" danger onClick={() => mirrorKeycode(26)} />
-            <Ctrl icon={Bell} label="Notifications" onClick={() => mirrorKeycode(KEY.NOTIFICATION)} />
-            <Ctrl icon={LayoutGrid} label="Quick Settings" onClick={() => mirrorOpen(INTENT.QUICK_SETTINGS)} />
-            <Ctrl icon={EyeOff} label="Hide Panels" onClick={() => mirrorKeycode(4)} />
-            <Ctrl icon={Settings} label="Settings" onClick={() => mirrorOpen(INTENT.SETTINGS)} />
-            <Ctrl icon={Code2} label="Developer Options" onClick={() => mirrorOpen(INTENT.DEV_OPTIONS)} />
-            <Ctrl icon={Info} label="About Phone" onClick={() => mirrorOpen(INTENT.ABOUT)} />
-            <Ctrl icon={Trash2} label="Clear Recents" danger onClick={() => mirrorKeycode(KEY.APP_SWITCH)} />
+            <Ctrl icon={Power} label="Power" hint="Tekan tombol power HP (kunci/buka layar)." onClick={() => mirrorKeycode(KEY.POWER)} />
+            <Ctrl icon={RotateCcw} label="Restart" danger hint="Mulai ulang (restart) HP." onClick={() => mirrorKeycode(26)} />
+            <Ctrl icon={Bell} label="Notifikasi" hint="Buka panel notifikasi (geser dari atas)." onClick={() => mirrorKeycode(KEY.NOTIFICATION)} />
+            <Ctrl icon={LayoutGrid} label="Setelan Cepat" hint="Buka panel setelan cepat (WiFi, Bluetooth, dll)." onClick={() => mirrorOpen(INTENT.QUICK_SETTINGS)} />
+            <Ctrl icon={EyeOff} label="Tutup Panel" hint="Tutup panel notifikasi/setelan yang terbuka." onClick={() => mirrorKeycode(4)} />
+            <Ctrl icon={Settings} label="Setelan" hint="Buka aplikasi Setelan (Settings) HP." onClick={() => mirrorOpen(INTENT.SETTINGS)} />
+            <Ctrl icon={Code2} label="Opsi Pengembang" hint="Buka Opsi Pengembang (Developer Options)." onClick={() => mirrorOpen(INTENT.DEV_OPTIONS)} />
+            <Ctrl icon={Info} label="Tentang Ponsel" hint="Buka halaman 'Tentang ponsel' (info perangkat)." onClick={() => mirrorOpen(INTENT.ABOUT)} />
+            <Ctrl icon={Trash2} label="Tutup Semua App" danger hint="Buka daftar aplikasi terbaru (untuk menutup semua)." onClick={() => mirrorKeycode(KEY.APP_SWITCH)} />
           </Group>
 
-          <Group title="Clipboard">
-            <Ctrl icon={ArrowDownToLine} label="PC → Phone" onClick={pcToPhone} />
-            <Ctrl icon={ArrowUpFromLine} label="Phone → PC" onClick={phoneToPc} />
+          <Group title="Clipboard (Salin-Tempel)">
+            <Ctrl icon={ArrowDownToLine} label="PC → HP" hint="Kirim teks yang disalin di komputer ke clipboard HP." onClick={pcToPhone} />
+            <Ctrl icon={ArrowUpFromLine} label="HP → PC" hint="Ambil teks dari clipboard HP ke komputer." onClick={phoneToPc} />
           </Group>
 
-          <Group title="Files">
-            <Ctrl icon={Camera} label="Screenshot" onClick={screenshot} />
-            <Ctrl icon={Upload} label="Push File" onClick={pushFile} />
+          <Group title="File">
+            <Ctrl icon={Camera} label="Screenshot" hint="Ambil tangkapan layar HP & simpan ke folder di komputer." onClick={screenshot} />
+            <Ctrl icon={Upload} label="Kirim File" hint="Kirim file dari komputer ke folder Download HP." onClick={pushFile} />
           </Group>
         </div>
 
         {/* Android nav bar */}
         <div className="flex items-center justify-center gap-10 border-t border-[var(--color-border)] py-3">
-          <NavBtn icon={Square} label="Recents" onClick={() => mirrorKeycode(KEY.APP_SWITCH)} />
-          <NavBtn icon={Circle} label="Home" onClick={() => mirrorKeycode(KEY.HOME)} />
-          <NavBtn icon={ChevronLeft} label="Back" onClick={() => mirrorBack()} />
+          <NavBtn icon={Square} label="Aplikasi terbaru (Recents)" onClick={() => mirrorKeycode(KEY.APP_SWITCH)} />
+          <NavBtn icon={Circle} label="Layar utama (Home)" onClick={() => mirrorKeycode(KEY.HOME)} />
+          <NavBtn icon={ChevronLeft} label="Kembali (Back)" onClick={() => mirrorBack()} />
         </div>
       </div>
     </div>
@@ -298,15 +298,18 @@ function Ctrl({
   label,
   onClick,
   danger,
+  hint,
 }: {
   icon: typeof Power;
   label: string;
   onClick: () => void;
   danger?: boolean;
+  hint?: string;
 }) {
   return (
     <button
       onClick={() => onClick()}
+      title={hint ?? label}
       className={cn(
         "no-drag flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
         danger

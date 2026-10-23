@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Button } from "../ui/Button";
-import { Section } from "../ui/Section";
+import { Section, TabHelp } from "../ui/Section";
 import { useTools } from "../../lib/useTools";
 import { useLog } from "../../state/log";
 
@@ -39,46 +39,69 @@ export function XiaomiTab() {
 
   return (
     <>
-      <Section title="Firmware">
-        <Button size="block" variant="primary" onClick={pickFolder}>
-          Select firmware folder
+      <TabHelp>
+        Khusus HP <b>Xiaomi / Redmi / POCO</b>. Memasang firmware resmi (ROM)
+        hasil ekstrak paket "fastboot" dari Mi (folder berisi file images +
+        script flash_all). HP harus di mode Fastboot.
+      </TabHelp>
+
+      <Section title="Folder Firmware">
+        <Button
+          size="block"
+          variant="primary"
+          title="Pilih folder hasil ekstrak paket firmware Xiaomi (yang berisi script flash_all)."
+          onClick={pickFolder}
+        >
+          Pilih Folder Firmware
         </Button>
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-ink-soft)]">
-          {fwFolder || "— no folder selected —"}
+          {fwFolder || "— belum ada folder dipilih —"}
         </div>
       </Section>
 
-      <Section title="Script options">
-        <label className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">
+      <Section title="Opsi">
+        <label
+          className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]"
+          title="Jangan hapus data pribadi (pakai script flash_all_except_storage). Aman untuk update tanpa kehilangan data."
+        >
           <input
             type="checkbox"
             checked={skipProduct}
             onChange={(e) => setSkipProduct(e.target.checked)}
             className="accent-[var(--color-brand)]"
           />
-          Skip product check (flash_all_except_storage)
+          Pertahankan data (jangan hapus storage)
         </label>
-        <label className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">
+        <label
+          className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]"
+          title="Matikan proteksi anti-rollback. HATI-HATI: salah pakai bisa brick. Hanya untuk yang paham."
+        >
           <input
             type="checkbox"
             checked={disableAntiRollback}
             onChange={(e) => setDisableAntiRollback(e.target.checked)}
             className="accent-[var(--color-brand)]"
           />
-          Disable anti-rollback
+          Matikan anti-rollback (berisiko)
         </label>
       </Section>
 
       <Section title="Mi Unlock">
         <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          Mi Unlock requires Xiaomi's official tool &amp; account. Launch it, then
-          follow the on-screen unlock flow.
+          Membuka bootloader Xiaomi butuh aplikasi resmi "Mi Unlock" + akun Mi
+          yang sudah terdaftar & menunggu masa tunggu. Tidak bisa dilakukan dari
+          sini — gunakan Mi Unlock resmi dari Xiaomi.
         </div>
       </Section>
 
       <Section>
-        <Button size="block" variant="danger" onClick={executeFlash}>
-          Execute Flash
+        <Button
+          size="block"
+          variant="danger"
+          title="Jalankan proses flashing firmware. HATI-HATI: proses ini menimpa sistem HP."
+          onClick={executeFlash}
+        >
+          Mulai Flash Firmware
         </Button>
       </Section>
     </>

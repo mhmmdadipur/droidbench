@@ -1,7 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Button } from "../ui/Button";
-import { Row, Section } from "../ui/Section";
+import { Row, Section, TabHelp } from "../ui/Section";
 import { useTools } from "../../lib/useTools";
 import { useLog } from "../../state/log";
 import { useDevice } from "../../state/device";
@@ -60,47 +60,90 @@ export function AdbTab() {
 
   return (
     <>
-      <Section title="ADB Server">
+      <TabHelp>
+        <b>ADB</b> dipakai saat HP menyala normal. Dari sini kamu bisa cermin
+        layar HP, reboot ke berbagai mode, dan pasang update (.zip).
+      </TabHelp>
+
+      <Section title="Koneksi ADB">
         <Row>
-          <Button variant="success" onClick={() => t.adb(["start-server"])}>
-            Start Server
+          <Button
+            variant="success"
+            title="Menyalakan layanan ADB di komputer (biasanya otomatis). Pakai ini jika HP tak terdeteksi."
+            onClick={() => t.adb(["start-server"])}
+          >
+            Nyalakan ADB
           </Button>
-          <Button variant="danger" onClick={() => t.adb(["kill-server"])}>
-            Kill Server
+          <Button
+            variant="danger"
+            title="Mematikan layanan ADB. Berguna untuk reset koneksi saat bermasalah."
+            onClick={() => t.adb(["kill-server"])}
+          >
+            Matikan ADB
           </Button>
         </Row>
-        <Button variant="violet" size="block" onClick={startMirroring}>
-          Start Mirroring
+        <Button
+          variant="violet"
+          size="block"
+          title="Tampilkan & kendalikan layar HP langsung dari komputer (seperti scrcpy)."
+          onClick={startMirroring}
+        >
+          Cermin Layar (Mirror)
         </Button>
       </Section>
 
-      <Section title="Reboot">
-        <Button size="block" onClick={() => t.adb(["reboot"])}>
-          Reboot System
+      <Section title="Reboot / Mulai Ulang">
+        <Button size="block" title="Mulai ulang HP seperti biasa (restart normal)." onClick={() => t.adb(["reboot"])}>
+          Reboot Normal
         </Button>
-        <Button size="block" onClick={() => t.adb(["reboot", "recovery"])}>
-          Reboot Recovery
+        <Button
+          size="block"
+          title="Mulai ulang ke mode Recovery (untuk pasang update/ROM, wipe, dll)."
+          onClick={() => t.adb(["reboot", "recovery"])}
+        >
+          Reboot ke Recovery
         </Button>
-        <Button size="block" onClick={() => t.adb(["reboot", "bootloader"])}>
-          Reboot Fastboot
+        <Button
+          size="block"
+          title="Mulai ulang ke mode Fastboot/Bootloader (untuk flashing via fastboot)."
+          onClick={() => t.adb(["reboot", "bootloader"])}
+        >
+          Reboot ke Fastboot
         </Button>
       </Section>
 
-      <Section title="Sideload">
-        <Button size="block" onClick={enterSideload}>
-          Enter Sideload Mode
+      <Section title="Pasang Update (Sideload)">
+        <Button
+          size="block"
+          title="Reboot HP ke mode sideload (Recovery → Apply update from ADB) untuk memasang file update."
+          onClick={enterSideload}
+        >
+          Masuk Mode Sideload
         </Button>
-        <Button size="block" variant="primary" onClick={sideloadFile}>
-          ADB Sideload File (.zip)
+        <Button
+          size="block"
+          variant="primary"
+          title="Pilih file update (.zip) dari komputer dan pasang ke HP. HP harus sudah di mode sideload."
+          onClick={sideloadFile}
+        >
+          Pasang File Update (.zip)
         </Button>
       </Section>
 
-      <Section title="Shell">
-        <Button size="block" onClick={() => t.adb(["devices", "-l"])}>
-          List Devices
+      <Section title="Info Perangkat">
+        <Button
+          size="block"
+          title="Tampilkan daftar HP yang terhubung beserta statusnya."
+          onClick={() => t.adb(["devices", "-l"])}
+        >
+          Daftar HP Terhubung
         </Button>
-        <Button size="block" onClick={() => t.adb(["shell", "getprop"])}>
-          Dump Properties
+        <Button
+          size="block"
+          title="Tampilkan semua info teknis HP (properti sistem) — untuk pengguna lanjutan."
+          onClick={() => t.adb(["shell", "getprop"])}
+        >
+          Info Teknis HP
         </Button>
       </Section>
     </>

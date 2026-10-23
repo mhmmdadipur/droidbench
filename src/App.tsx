@@ -6,8 +6,8 @@ import {
   PackageOpen,
   Trash2,
   FolderOpen,
-  Terminal,
-  Cpu,
+  RefreshCw,
+  HelpCircle,
   Download,
 } from "lucide-react";
 import { TitleBar } from "./components/TitleBar";
@@ -56,23 +56,52 @@ function TabContent({ tab }: { tab: TabId }) {
 }
 
 function BottomToolbar() {
-  const { push } = useLog();
-  const item = (label: string, Icon: typeof Smartphone, onClick: () => void) => (
+  const { push, run } = useLog();
+
+  async function openFiles() {
+    push("Menampilkan isi penyimpanan HP (/sdcard)…", "system");
+    run("adb", ["shell", "ls", "-la", "/sdcard"]);
+  }
+  function listDevices() {
+    push("Mengecek HP yang terhubung…", "system");
+    run("adb", ["devices", "-l"]);
+  }
+  function connectionHelp() {
+    push("── Bantuan Koneksi HP ──", "system");
+    push("1. Aktifkan 'Opsi Pengembang' di HP (Setelan > Tentang ponsel > ketuk 'Nomor bentukan' 7x).", "system");
+    push("2. Aktifkan 'USB Debugging' di Opsi Pengembang.", "system");
+    push("3. Colok HP ke komputer dengan kabel USB (kabel data, bukan kabel charge-only).", "system");
+    push("4. Di HP akan muncul izin 'Allow USB debugging' — ketuk Izinkan/Allow.", "system");
+    push("5. Klik 'Cek Perangkat' di bawah untuk memastikan HP terdeteksi.", "system");
+  }
+  function restartConnection() {
+    push("Menyalakan ulang koneksi ADB…", "system");
+    run("adb", ["kill-server"]);
+    setTimeout(() => run("adb", ["start-server"]), 400);
+  }
+
+  const item = (
+    label: string,
+    hint: string,
+    Icon: typeof Smartphone,
+    onClick: () => void,
+  ) => (
     <button
       onClick={onClick}
-      title={label}
+      title={hint}
       className="no-drag flex h-14 flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-1 text-center text-[10px] font-medium leading-tight text-[var(--color-ink-soft)] transition-colors hover:border-[var(--color-brand)] hover:text-[var(--color-brand-600)]"
     >
       <Icon size={15} className="shrink-0" />
-      <span className="w-full truncate">{label}</span>
+      <span className="w-full leading-tight">{label}</span>
     </button>
   );
+
   return (
     <div className="flex gap-1.5">
-      {item("Files", FolderOpen, () => push("File Explorer: not yet wired.", "system"))}
-      {item("Terminal", Terminal, () => push("Terminal: not yet wired.", "system"))}
-      {item("Dev Mgr", Cpu, () => push("Device Manager: not yet wired.", "system"))}
-      {item("Driver", Download, () => push("Install Driver: not yet wired.", "system"))}
+      {item("Buka File HP", "Lihat isi penyimpanan HP (folder /sdcard) dari komputer.", FolderOpen, openFiles)}
+      {item("Cek Perangkat", "Tampilkan HP yang terhubung & statusnya (apakah terdeteksi).", Smartphone, listDevices)}
+      {item("Restart Koneksi", "Mulai ulang koneksi ADB jika HP tidak terdeteksi / error.", RefreshCw, restartConnection)}
+      {item("Bantuan Koneksi", "Panduan cara menyambungkan HP (USB debugging, dll).", HelpCircle, connectionHelp)}
     </div>
   );
 }

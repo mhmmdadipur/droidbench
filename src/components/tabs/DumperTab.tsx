@@ -1,6 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { Button } from "../ui/Button";
-import { Section } from "../ui/Section";
+import { Section, TabHelp } from "../ui/Section";
 import { useTools } from "../../lib/useTools";
 import { useLog } from "../../state/log";
 
@@ -40,17 +40,32 @@ export function DumperTab() {
 
   return (
     <>
-      <Section title="Payload Dump (PC only)">
-        <Button size="block" variant="success" onClick={dumpPayload}>
-          Dump payload.bin / OTA ZIP
+      <TabHelp>
+        Mengambil file sistem (boot, vendor, system, dll) dari dalam file update
+        <b> OTA</b> (payload.bin di dalam ZIP). Hasilnya bisa kamu flash satu per
+        satu di tab Fastboot. Semua diproses di komputer, HP tidak perlu dicolok.
+      </TabHelp>
+
+      <Section title="Ekstrak Payload">
+        <Button
+          size="block"
+          variant="success"
+          title="Pilih file OTA (.zip) atau payload.bin, lalu ekstrak semua image sistem ke folder pilihanmu."
+          onClick={dumpPayload}
+        >
+          Ekstrak payload.bin / OTA ZIP
         </Button>
-        <Button size="block" onClick={extractZip}>
-          Extract files from ZIP only
+        <Button
+          size="block"
+          title="Hanya membuka isi file ZIP biasa ke sebuah folder (tanpa memproses payload)."
+          onClick={extractZip}
+        >
+          Ekstrak isi ZIP saja
         </Button>
       </Section>
       <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-[var(--color-ink-soft)]">
-        Extracts partition images (boot, vendor, system, …) from an A/B OTA
-        payload so you can flash them individually in the Fastboot tab.
+        Contoh hasil: boot.img, vendor.img, system.img — lalu pasang masing-masing
+        di tab <b>Fastboot</b>.
       </div>
     </>
   );
