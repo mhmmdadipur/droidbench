@@ -1,0 +1,2 @@
+# Bundled CLI binaries (adb, fastboot, scrcpy, scrcpy-server) go here.
+# They are gitignored — run: bash scripts/fetch-binaries.sh

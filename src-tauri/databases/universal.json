@@ -1,0 +1,2988 @@
+{
+  "id": "universal",
+  "name": "Universal Debloat",
+  "source": "Android-Universal-Debloat (myruldev) — MIT",
+  "categories": [
+    {
+      "name": "Universal",
+      "entries": [
+        {
+          "package": "com.google.android.apps.tachyon",
+          "label": "Google Meet (Duo)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.youtube",
+          "label": "YouTube",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.apps.youtube.music",
+          "label": "YouTube Music",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.docs",
+          "label": "Google Drive",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.apps.photos",
+          "label": "Google Photos",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.apps.magazines",
+          "label": "Google News",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.videos",
+          "label": "Google TV / Film",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.play.games",
+          "label": "Google Play Games",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.books",
+          "label": "Google Play Buku",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.feedback",
+          "label": "Masukan Google",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.printservice.recommendation",
+          "label": "Saran Layanan Cetak",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.wellbeing",
+          "label": "Digital Wellbeing",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.subscriptions.red",
+          "label": "Google One",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.googleassistant",
+          "label": "Google Assistant",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.google.ar.core",
+          "label": "ARCore (Google Play untuk AR)",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.marvin.talkback",
+          "label": "TalkBack (pembaca layar)",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.android.chrome",
+          "label": "Google Chrome",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.facebook.appmanager",
+          "label": "Facebook App Manager",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.services",
+          "label": "Facebook Services",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.system",
+          "label": "Facebook App Installer",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.android.bips",
+          "label": "Layanan Cetak Bawaan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.wallpaper.livepicker",
+          "label": "Wallpaper Bergerak",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.dreams.basic",
+          "label": "Screensaver Dasar",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.dreams.phototable",
+          "label": "Screensaver Foto",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.bookmarkprovider",
+          "label": "Penyedia Bookmark",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.htmlviewer",
+          "label": "Penampil HTML",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.egg",
+          "label": "Easter Egg Android",
+          "description": "safe",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Samsung",
+      "entries": [
+        {
+          "package": "com.samsung.android.bixby.agent",
+          "label": "Bixby (asisten)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.bixby.service",
+          "label": "Bixby Service",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.bixbyvision.framework",
+          "label": "Bixby Vision",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.app.spage",
+          "label": "Samsung Free / Bixby Home",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.game.gamehome",
+          "label": "Game Launcher",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.game.gametools",
+          "label": "Game Tools",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.scloud",
+          "label": "Samsung Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.samsung.android.app.tips",
+          "label": "Samsung Tips",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.app.notes",
+          "label": "Samsung Notes",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.voc",
+          "label": "Samsung Members",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.kidsinstaller",
+          "label": "Samsung Kids Installer",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.arzone",
+          "label": "AR Zone",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.aremoji",
+          "label": "AR Emoji",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sec.android.app.sbrowser",
+          "label": "Samsung Internet",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.sec.android.app.samsungapps",
+          "label": "Galaxy Store",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.samsung.android.themestore",
+          "label": "Galaxy Themes",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.app.watchmanager",
+          "label": "Galaxy Wearable",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan Samsung)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.microsoft.skydrive",
+          "label": "Microsoft OneDrive",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.microsoft.office.officehubrow",
+          "label": "Microsoft Office",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.linkedin.android",
+          "label": "LinkedIn (bawaan)",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.netflix.partner.activation",
+          "label": "Netflix Activation",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.bixby.wakeup",
+          "label": "Bixby Voice Wake-up",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.samsung.android.app.dressroom",
+          "label": "Wallpaper & Style",
+          "description": "safe",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Xiaomi",
+      "entries": [
+        {
+          "package": "com.miui.analytics",
+          "label": "MIUI Analytics (pelacak)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.msa.global",
+          "label": "MSA (mesin iklan MIUI)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.systemAdSolution",
+          "label": "Layanan Iklan Sistem",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.xiaomi.mipicks",
+          "label": "GetApps (toko aplikasi Xiaomi)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.player",
+          "label": "Mi Music",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.miui.video",
+          "label": "Mi Video",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.miui.videoplayer",
+          "label": "Mi Video Player",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.mi.globalbrowser",
+          "label": "Mi Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.bugreport",
+          "label": "Laporan Bug MIUI",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.miui.cloudbackup",
+          "label": "Mi Cloud Backup",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.miui.cloudservice",
+          "label": "Mi Cloud Service",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.miui.daemon",
+          "label": "MIUI Daemon",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.miui.cleanmaster",
+          "label": "Pembersih (Cleaner)",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.miui.weather2",
+          "label": "Cuaca MIUI",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.miui.notes",
+          "label": "Catatan MIUI",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.miui.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.miui.fm",
+          "label": "Radio FM",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.miui.calculator",
+          "label": "Kalkulator MIUI",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.xiaomi.glgm",
+          "label": "Game Center Xiaomi",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.xiaomi.payment",
+          "label": "Mi Pay",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.xiaomi.gamecenter.sdk.service",
+          "label": "Game Center SDK",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.thememanager",
+          "label": "Tema MIUI",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.miui.yellowpage",
+          "label": "Yellow Pages",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.miui.touchassistant",
+          "label": "Quick Ball",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.miui.android.fashiongallery",
+          "label": "Wallpaper Carousel",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Oppo",
+      "entries": [
+        {
+          "package": "com.heytap.market",
+          "label": "App Market OPPO",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.heytap.browser",
+          "label": "HeyTap Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.heytap.music",
+          "label": "HeyTap Music",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.video",
+          "label": "Video ColorOS",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.gallery3d",
+          "label": "Galeri ColorOS",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.coloros.weather2",
+          "label": "Cuaca ColorOS",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.weather.service",
+          "label": "Layanan Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.compass2",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.backuprestore",
+          "label": "Backup & Restore",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.oppo.quicksearchbox",
+          "label": "Pencarian Cepat OPPO",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.oppo.market",
+          "label": "OPPO Market (lama)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.nearme.gamecenter",
+          "label": "Game Center",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.nearme.atlas",
+          "label": "HeyTap Pay",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.heytap.cloud",
+          "label": "HeyTap Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.coloros.findmyphone",
+          "label": "Find My Phone",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.coloros.opporadio",
+          "label": "Radio FM",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.childrenspace",
+          "label": "Mode Anak",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.assistantscreen",
+          "label": "Asisten Layar (Shelf)",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Vivo",
+      "entries": [
+        {
+          "package": "com.vivo.appstore",
+          "label": "Vivo App Store",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.browser",
+          "label": "Vivo Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.android.bbkmusic",
+          "label": "i Music",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.VideoPlayer",
+          "label": "i Video",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.gallery",
+          "label": "Galeri Vivo",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.vivo.weather",
+          "label": "Cuaca Vivo",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.weather.provider",
+          "label": "Penyedia Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.bbklog",
+          "label": "BBK Log",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.game",
+          "label": "Game Center Vivo",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.assistant",
+          "label": "Jovi Smart Scene",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.hiboard",
+          "label": "Jovi Home",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.agent",
+          "label": "Jovi Voice Assistant",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.email",
+          "label": "Email Vivo",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.note",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.smartshot",
+          "label": "Tangkapan Layar Pintar",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.bbk.cloud",
+          "label": "Vivo Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.bbk.appstore",
+          "label": "BBK App Store",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.vivo.easyshare",
+          "label": "EasyShare",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Realme",
+      "entries": [
+        {
+          "package": "com.heytap.market",
+          "label": "App Market realme",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.heytap.browser",
+          "label": "realme Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.heytap.music",
+          "label": "realme Music",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.video",
+          "label": "Video realme",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.gallery3d",
+          "label": "Galeri realme",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.coloros.weather2",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.weather.service",
+          "label": "Layanan Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.compass2",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.backuprestore",
+          "label": "Backup & Restore",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.nearme.gamecenter",
+          "label": "Game Center",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.nearme.atlas",
+          "label": "realme Pay",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.heytap.cloud",
+          "label": "HeyTap Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.realme.movieshot",
+          "label": "Movie Shot",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.realmecomm.app",
+          "label": "realme Community",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.realme.securitycheck",
+          "label": "Pemeriksa Keamanan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.findmyphone",
+          "label": "Find My Phone",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.assistantscreen",
+          "label": "Smart Assistant (Shelf)",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Oneplus",
+      "entries": [
+        {
+          "package": "com.oneplus.brickmode",
+          "label": "Zen Mode",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.oneplus.gamespace",
+          "label": "Game Space",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.oneplus.opbackup",
+          "label": "OnePlus Backup",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.oneplus.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.oneplus.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.oneplus.note",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.oneplus.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.oneplus.weather",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.oneplus.deskclock",
+          "label": "Jam",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.heytap.market",
+          "label": "App Market",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.heytap.browser",
+          "label": "Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.heytap.music",
+          "label": "Music",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.heytap.cloud",
+          "label": "HeyTap Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.nearme.gamecenter",
+          "label": "Game Center",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.oplus.games",
+          "label": "OPlus Games",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.coloros.gallery3d",
+          "label": "Galeri",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.coloros.backuprestore",
+          "label": "Backup & Restore",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.netflix.mediaclient",
+          "label": "Netflix (bawaan)",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.oneplus.twspods",
+          "label": "OnePlus Buds",
+          "description": "safe",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Motorola",
+      "entries": [
+        {
+          "package": "com.motorola.motocare",
+          "label": "Moto Care",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.motorola.ccc.notification",
+          "label": "Notifikasi Moto",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.motorola.help",
+          "label": "Moto Help / Bantuan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.motorola.genie",
+          "label": "Moto Genie",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.motorola.android.provisioning",
+          "label": "Provisioning Moto",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.motorola.demo",
+          "label": "Mode Demo",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.motorola.audiomonitor",
+          "label": "Moto Audio Monitor",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.motorola.gamemode",
+          "label": "Moto Game Time",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.motorola.launcher3",
+          "label": "Moto Launcher",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.motorola.timeweatherwidget",
+          "label": "Widget Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.motorola.fmplayer",
+          "label": "Radio FM",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.motorola.moto",
+          "label": "Moto (aplikasi fitur)",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.motorola.brapps",
+          "label": "Marketplace Moto",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.motorola.notification",
+          "label": "Moto Notifikasi",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tmobile.pr.adapt",
+          "label": "T-Mobile Adapt (operator)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.appmanager",
+          "label": "Facebook App Manager",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.services",
+          "label": "Facebook Services",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.amazon.appmanager",
+          "label": "Amazon App Manager",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.tmobile.pr.mytmobile",
+          "label": "My T-Mobile (operator)",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Nokia",
+      "entries": [
+        {
+          "package": "com.evenwell.fqcservice",
+          "label": "FQC Service",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.hmdglobal.app.mma",
+          "label": "My Phone / Support HMD",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.hmdglobal.support",
+          "label": "Dukungan Nokia",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "fm.player",
+          "label": "Pemutar Radio FM",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.evenwell.coloros.weather",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.dolby.daxappui",
+          "label": "Dolby Atmos UI",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.hmdglobal.camera2",
+          "label": "Kamera Nokia",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.hmd.security",
+          "label": "HMD Security",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.hmdglobal.cs.optimizer",
+          "label": "Optimizer",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.appmanager",
+          "label": "Facebook App Manager",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.services",
+          "label": "Facebook Services",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.netflix.mediaclient",
+          "label": "Netflix (bawaan)",
+          "description": "safe",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Sony",
+      "entries": [
+        {
+          "package": "com.sonymobile.support",
+          "label": "Support Xperia",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sonymobile.android.welcome",
+          "label": "Welcome / Xperia Lounge",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sonymobile.assist",
+          "label": "Xperia Assist",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sonymobile.email",
+          "label": "Email Sony",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sonymobile.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sonyericsson.organizer",
+          "label": "Kalender & Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sonyericsson.notes",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sony.tvsideview.phone",
+          "label": "TV SideView",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sonymobile.music",
+          "label": "Music Xperia",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sonymobile.album",
+          "label": "Album Xperia",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.sonymobile.movies",
+          "label": "Video Xperia",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sonymobile.gameenhancer",
+          "label": "Game Enhancer",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.sonymobile.lifelog",
+          "label": "Lifelog",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sonymobile.xperialink",
+          "label": "Xperia Link",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.sonymobile.advancedwidget.weather",
+          "label": "Widget Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.amazon.mShop.android.shopping",
+          "label": "Amazon Shopping (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.netflix.mediaclient",
+          "label": "Netflix (bawaan)",
+          "description": "safe",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Asus",
+      "entries": [
+        {
+          "package": "com.asus.gamecenter",
+          "label": "Game Center / Armoury Crate",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.asus.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.asus.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.asus.flashlight",
+          "label": "Senter",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.asus.weathertime",
+          "label": "Cuaca & Jam",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.asus.calendar",
+          "label": "Kalender ASUS",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.asus.fmradio",
+          "label": "Radio FM",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.asus.userfeedback",
+          "label": "Masukan Pengguna",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.asus.systemupdate",
+          "label": "Update Sistem ASUS",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.asus.dm",
+          "label": "Device Management",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.asus.tutorial",
+          "label": "Tutorial",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.asus.ia.asusapp",
+          "label": "ASUS App / DealHub",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.asus.mobilemanager",
+          "label": "Mobile Manager",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.asus.gallery",
+          "label": "Galeri ASUS",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.asus.email",
+          "label": "Email ASUS",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.asus.filemanager",
+          "label": "File Manager",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.asus.zenlife",
+          "label": "ZenLife",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.appmanager",
+          "label": "Facebook App Manager",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.services",
+          "label": "Facebook Services",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Honor",
+      "entries": [
+        {
+          "package": "com.hihonor.appmarket",
+          "label": "Honor App Market",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.hihonor.android.hsf",
+          "label": "Honor Mobile Services",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.hihonor.id",
+          "label": "Honor ID",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.hihonor.cloud",
+          "label": "Honor Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.hihonor.gamecenter",
+          "label": "Honor Game Center",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.hihonor.intelligent",
+          "label": "Asisten Hi (YOYO)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.hihonor.tips",
+          "label": "Honor Tips",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.hihonor.phoneservice",
+          "label": "Layanan & Servis",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.hihonor.health",
+          "label": "Honor Health",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.hihonor.scanner",
+          "label": "Pemindai Dokumen",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.hihonor.findmydevice",
+          "label": "Find My Device",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.huawei.android.totemweather",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.music",
+          "label": "Musik",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.himovie.overseas",
+          "label": "HUAWEI Video",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.hicloud",
+          "label": "Hi Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.huawei.browser",
+          "label": "Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.notepad",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.booking",
+          "label": "Booking.com (bawaan)",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Huawei",
+      "entries": [
+        {
+          "package": "com.huawei.appmarket",
+          "label": "AppGallery",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.huawei.hwid",
+          "label": "Huawei ID",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.huawei.hicloud",
+          "label": "Huawei Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.huawei.android.hsf",
+          "label": "Huawei Mobile Services",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.huawei.gamebox",
+          "label": "Game Center",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.intelligent",
+          "label": "HiBoard / Asisten",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.tips",
+          "label": "Huawei Tips",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.phoneservice",
+          "label": "Layanan & Dukungan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.health",
+          "label": "Huawei Health",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.android.totemweather",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.music",
+          "label": "HUAWEI Music",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.himovie.overseas",
+          "label": "HUAWEI Video",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.browser",
+          "label": "HUAWEI Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.notepad",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.scanner",
+          "label": "Pemindai HiVision",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.android.findmyphone",
+          "label": "Find My Phone",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.huawei.parentcontrol",
+          "label": "Parental Control",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.fastapp",
+          "label": "Fast App Engine",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.huawei.hwireader",
+          "label": "HUAWEI Reader",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.booking",
+          "label": "Booking.com (bawaan)",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Infinix",
+      "entries": [
+        {
+          "package": "com.transsion.phoenix",
+          "label": "Phoenix Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsnet.store",
+          "label": "Palm Store (toko aplikasi)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.appupdate",
+          "label": "App Update Transsion",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.afmobi.boomplayer",
+          "label": "Boomplay Music",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.videocommunity",
+          "label": "Vskit / Video",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.rlk.weathers",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.notebook",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.deskclock",
+          "label": "Jam",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.aivoiceassistant",
+          "label": "Asisten Suara",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.healthlife",
+          "label": "Health Life",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.magicshow",
+          "label": "Magic Wallpaper",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.carlcare",
+          "label": "Carlcare (servis)",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.kolun.assistant",
+          "label": "Smart Panel",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.infinix.xshare",
+          "label": "XShare",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.gamecenter",
+          "label": "Game Center",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Itel",
+      "entries": [
+        {
+          "package": "com.transsnet.store",
+          "label": "Palm Store (toko aplikasi)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.phoenix",
+          "label": "Phoenix Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.appupdate",
+          "label": "App Update Transsion",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.afmobi.boomplayer",
+          "label": "Boomplay Music",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.videocommunity",
+          "label": "Video Community",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.rlk.weathers",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.notebook",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.deskclock",
+          "label": "Jam",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.healthlife",
+          "label": "Health Life",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.magicshow",
+          "label": "Magic Wallpaper",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.carlcare",
+          "label": "Carlcare (servis)",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.aivoiceassistant",
+          "label": "Asisten Suara",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.gamecenter",
+          "label": "Game Center",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Lenovo",
+      "entries": [
+        {
+          "package": "com.lenovo.lsf.user",
+          "label": "Lenovo Service Framework",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.lenovo.lsf",
+          "label": "Lenovo ID",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.lenovo.browser",
+          "label": "Lenovo Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.lenovo.weather",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lenovo.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lenovo.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lenovo.note",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lenovo.gamecenter",
+          "label": "Game Center",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.lenovo.security",
+          "label": "Lenovo Security",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.lenovo.feedback",
+          "label": "Masukan Lenovo",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lenovo.appstore",
+          "label": "Lenovo App Store",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.appmanager",
+          "label": "Facebook App Manager",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.netflix.mediaclient",
+          "label": "Netflix (bawaan)",
+          "description": "safe",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Lg",
+      "entries": [
+        {
+          "package": "com.lge.appbox.client",
+          "label": "LG SmartWorld",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.lge.email",
+          "label": "Email LG",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lge.music",
+          "label": "Musik LG",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lge.gallery.vr",
+          "label": "Galeri VR",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lge.weather",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lge.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lge.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lge.qmemoplus",
+          "label": "QuickMemo+",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lge.sizechangable.weather",
+          "label": "Widget Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lge.bnr",
+          "label": "Backup & Restore",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.lge.lgaccount",
+          "label": "Akun LG",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.lge.updatecenter",
+          "label": "Update Center",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.lge.gametuner",
+          "label": "Game Tuner",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.lge.smartShare",
+          "label": "SmartShare",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.amazon.mShop.android.shopping",
+          "label": "Amazon Shopping (bawaan)",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Meizu",
+      "entries": [
+        {
+          "package": "com.meizu.flyme.gamecenter",
+          "label": "Game Center",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.meizu.media.music",
+          "label": "Musik",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.meizu.media.video",
+          "label": "Video",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.meizu.flyme.weather",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.meizu.flyme.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.meizu.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.meizu.flyme.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.meizu.notepaper",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.meizu.cloud",
+          "label": "Flyme Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.meizu.account",
+          "label": "Akun Flyme",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.meizu.mstore",
+          "label": "App Store Meizu",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.meizu.browser",
+          "label": "Browser Meizu",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.meizu.flyme.find",
+          "label": "Find Phone",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.meizu.feedback",
+          "label": "Masukan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Nubia",
+      "entries": [
+        {
+          "package": "cn.nubia.gamelauncher",
+          "label": "Game Space / Launcher",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "cn.nubia.browser",
+          "label": "Nubia Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "cn.nubia.music",
+          "label": "Musik Nubia",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "cn.nubia.video",
+          "label": "Video Nubia",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "cn.nubia.weather2",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "cn.nubia.calculator2",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "cn.nubia.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "cn.nubia.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "cn.nubia.note",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "cn.nubia.gallery3d",
+          "label": "Galeri",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "cn.nubia.cloud",
+          "label": "Nubia Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "cn.nubia.backup",
+          "label": "Backup Nubia",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "cn.nubia.account",
+          "label": "Akun Nubia",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Pixel",
+      "entries": [
+        {
+          "package": "com.google.android.apps.turbo",
+          "label": "Device Health Services",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.apps.tachyon",
+          "label": "Google Meet (Duo)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.nbu.files",
+          "label": "Files by Google",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.wellbeing",
+          "label": "Digital Wellbeing",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.subscriptions.red",
+          "label": "Google One",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.youtube.music",
+          "label": "YouTube Music",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.youtube",
+          "label": "YouTube",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.videos",
+          "label": "Google TV",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.magazines",
+          "label": "Google News",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.podcasts",
+          "label": "Google Podcasts",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.googleassistant",
+          "label": "Google Assistant",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.apps.recorder",
+          "label": "Perekam (Recorder)",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.safetyhub",
+          "label": "Safety / Keselamatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.pixelmigrate",
+          "label": "Migrasi Data Pixel",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.as",
+          "label": "Pixel Device Personalization",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.apps.wallpaper",
+          "label": "Wallpaper Pixel",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.maps",
+          "label": "Google Maps",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.gm",
+          "label": "Gmail",
+          "description": "advanced",
+          "safe": false
+        }
+      ]
+    },
+    {
+      "name": "Sharp",
+      "entries": [
+        {
+          "package": "jp.co.sharp.android.weather",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "jp.co.sharp.android.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "jp.co.sharp.android.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "jp.co.sharp.android.notepad",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "jp.co.sharp.android.emopa",
+          "label": "Emopa (asisten)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "jp.co.sharp.android.healthcare",
+          "label": "Healthcare",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "jp.co.sharp.android.fmradio",
+          "label": "Radio FM",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "jp.co.sharp.android.gallery",
+          "label": "Galeri",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "jp.co.sharp.android.appmarket",
+          "label": "App Market",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "jp.co.sharp.android.feedback",
+          "label": "Masukan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Tcl",
+      "entries": [
+        {
+          "package": "com.tct.weather",
+          "label": "Cuaca TCL",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.weather",
+          "label": "Cuaca (alternatif)",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tct.gallery3d",
+          "label": "Galeri",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.tcl.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.notepad",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tct.launchersetting",
+          "label": "Pengaturan Launcher",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.usercenter",
+          "label": "User Center",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.appmarket",
+          "label": "TCL App Market",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.tct.gamecenter",
+          "label": "Game Center",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.smartmanager",
+          "label": "Smart Manager",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.appmanager",
+          "label": "Facebook App Manager",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.services",
+          "label": "Facebook Services",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.netflix.mediaclient",
+          "label": "Netflix (bawaan)",
+          "description": "safe",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Tecno",
+      "entries": [
+        {
+          "package": "com.transsion.phoenix",
+          "label": "Phoenix Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsnet.store",
+          "label": "Palm Store (toko aplikasi)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.appupdate",
+          "label": "App Update Transsion",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.afmobi.boomplayer",
+          "label": "Boomplay Music",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.videocommunity",
+          "label": "Video Community",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.rlk.weathers",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.notebook",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.deskclock",
+          "label": "Jam",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.aivoiceassistant",
+          "label": "Asisten Suara",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.healthlife",
+          "label": "Health Life",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.magicshow",
+          "label": "Magic Wallpaper",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.carlcare",
+          "label": "Carlcare (servis)",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.kolun.assistant",
+          "label": "Smart Panel",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.hilauncher.assistant",
+          "label": "Asisten Launcher",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.gamecenter",
+          "label": "Game Center",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.tysc",
+          "label": "App Recommendation (rekomendasi)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.scanningrubbish",
+          "label": "Pembersih Sampah",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.applock",
+          "label": "App Lock",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.smartpanel",
+          "label": "Smart Panel",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.minlauncher",
+          "label": "Mini Launcher",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.theme",
+          "label": "Tema",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.transsion.weather",
+          "label": "Cuaca (alternatif)",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.systemupdate",
+          "label": "Update Sistem",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.transsion.cloud",
+          "label": "Transsion Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.afmobi.palmplay",
+          "label": "PalmPlay (toko aplikasi)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.tecnospot",
+          "label": "Tecno Spot (komunitas)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.aha",
+          "label": "Aha Games",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.transsion.smartdocs",
+          "label": "Smart Docs",
+          "description": "safe",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Wiko",
+      "entries": [
+        {
+          "package": "com.wiko.weatherclock",
+          "label": "Cuaca & Jam",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.wiko.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.wiko.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.wiko.notepad",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.wiko.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.wiko.fm",
+          "label": "Radio FM",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.wiko.gallery",
+          "label": "Galeri",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.wiko.appstore",
+          "label": "Wiko App Store",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.wiko.feedback",
+          "label": "Masukan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.wiko.systemupdate",
+          "label": "Update Sistem",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.appmanager",
+          "label": "Facebook App Manager",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Zte",
+      "entries": [
+        {
+          "package": "cn.nubia.gamelauncher",
+          "label": "Game Launcher",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.zte.appstore",
+          "label": "ZTE App Store",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.zte.browser",
+          "label": "ZTE Browser",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.zte.music",
+          "label": "Musik ZTE",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.zte.videoplayer",
+          "label": "Pemutar Video",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.zte.weather",
+          "label": "Cuaca",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.zte.calculator",
+          "label": "Kalkulator",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.zte.compass",
+          "label": "Kompas",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.zte.soundrecorder",
+          "label": "Perekam Suara",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.zte.notebook",
+          "label": "Catatan",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.zte.feedback",
+          "label": "Masukan ZTE",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.zte.cloud",
+          "label": "ZTE Cloud",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.zte.heartyservice",
+          "label": "Hearty Service (manager)",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.zte.backup",
+          "label": "Backup ZTE",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.appmanager",
+          "label": "Facebook App Manager",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    }
+  ]
+}

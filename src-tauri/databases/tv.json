@@ -1,0 +1,197 @@
+{
+  "id": "tv",
+  "name": "Android TV Detox",
+  "source": "tv-detox (Ansub) — MIT (AI parts omitted)",
+  "categories": [
+    {
+      "name": "Safe to disable (ads / junk)",
+      "entries": [
+        {
+          "package": "com.google.android.tvrecommendations",
+          "label": "Google TV sponsored row",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.backdrop",
+          "label": "Google TV backdrop ads",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.videos",
+          "label": "Google TV / Play Movies",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.youtube.tvmusic",
+          "label": "YouTube Music",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.play.games",
+          "label": "Play Games",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.feedback",
+          "label": "Google feedback",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.printspooler",
+          "label": "Printing",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.htmlviewer",
+          "label": "HTML file viewer",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.android.soundpicker",
+          "label": "Sound picker",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.waterfall.overseas",
+          "label": "TCL content & ads feed",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.esticker",
+          "label": "TCL e-sticker",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.partnercustomizer",
+          "label": "TCL launcher customizer",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.messagebox",
+          "label": "TCL message box",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.smartalexa",
+          "label": "TCL Alexa",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.copydatatotv",
+          "label": "TCL phone migration",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.audioplayer",
+          "label": "TCL audio player",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.imageplayer",
+          "label": "TCL picture player",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.keyhelp",
+          "label": "TCL key help",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.usercenter",
+          "label": "TCL user centre",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.dashboard",
+          "label": "TCL dashboard",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.ttvs",
+          "label": "TCL analytics & Alexa hooks",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.micmanager",
+          "label": "TCL mic manager",
+          "description": "safe",
+          "safe": true
+        },
+        {
+          "package": "com.tcl.factory.view",
+          "label": "TCL factory view",
+          "description": "safe",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Optional (disable only if unused)",
+      "entries": [
+        {
+          "package": "com.google.android.katniss",
+          "label": "Google TV search & voice",
+          "description": "keep",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.tv.assistant",
+          "label": "Google Assistant",
+          "description": "keep",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.apps.mediashell",
+          "label": "Google Cast",
+          "description": "keep",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.tts",
+          "label": "Text to speech",
+          "description": "keep",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.marvin.talkback",
+          "label": "TalkBack screen reader",
+          "description": "keep",
+          "safe": false
+        },
+        {
+          "package": "com.google.android.apps.tv.dreamx",
+          "label": "Google TV screensaver",
+          "description": "keep",
+          "safe": false
+        },
+        {
+          "package": "com.android.dreams.basic",
+          "label": "Basic screensaver",
+          "description": "keep",
+          "safe": false
+        }
+      ]
+    }
+  ]
+}

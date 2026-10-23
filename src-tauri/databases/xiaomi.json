@@ -1,0 +1,322 @@
+{
+  "id": "xiaomi",
+  "name": "Xiaomi / MIUI / HyperOS",
+  "source": "MiDebloat-Remover (myruldev) — MIT",
+  "categories": [
+    {
+      "name": "Ads and Telemetry",
+      "entries": [
+        {
+          "package": "com.miui.msa.global",
+          "label": "MIUI System Ads (MSA)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.systemAdSolution",
+          "label": "MSA Core (Iklan Sistem)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.analytics",
+          "label": "Analytics / Telemetri",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.android.fashiongallery",
+          "label": "Wallpaper Carousel",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.mfashiongallery.emag",
+          "label": "Glance / Fashion Gallery",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.bugreport",
+          "label": "Bug Report",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.yellowpage",
+          "label": "Yellow Page",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.cleanmaster",
+          "label": "Cleaner (iklan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.miservice",
+          "label": "Services & Feedback",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.xiaomi.glgm",
+          "label": "Game Center",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.hybrid",
+          "label": "Quick Apps",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.hybrid.accessory",
+          "label": "Quick Apps Accessory",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.newhome",
+          "label": "App Vault / News Feed",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.system",
+          "label": "Facebook App Installer",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.appmanager",
+          "label": "Facebook App Manager",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.services",
+          "label": "Facebook Services",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.facebook.katana",
+          "label": "Facebook (bawaan)",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.tachyon",
+          "label": "Google Meet/Duo",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.xiaomi.payment",
+          "label": "Mi Pay",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.mipay.wallet.id",
+          "label": "Mi Pay Wallet",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.apps.subscriptions.red",
+          "label": "Google One",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.videos",
+          "label": "Google TV / Movies",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.feedback",
+          "label": "Google Feedback",
+          "description": "recommended",
+          "safe": true
+        },
+        {
+          "package": "com.miui.miwallpaper.wallpaper",
+          "label": "Wallpaper Service",
+          "description": "recommended",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Optional Apps",
+      "entries": [
+        {
+          "package": "com.xiaomi.mipicks",
+          "label": "GetApps (App Store)",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.browser",
+          "label": "Mi Browser",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.mi.globalbrowser",
+          "label": "Mi Browser (Global)",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.videoplayer",
+          "label": "Mi Video",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.video.global",
+          "label": "Mi Video (Global)",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.player",
+          "label": "Mi Music",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.weather2",
+          "label": "Mi Weather",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.notes",
+          "label": "Mi Notes",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.compass",
+          "label": "Compass",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.fm",
+          "label": "FM Radio (HyperOS)",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.fmradio",
+          "label": "FM Radio (MIUI)",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.xiaomi.midrop",
+          "label": "ShareMe",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.google.android.projection.gearhead",
+          "label": "Android Auto",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.cloudservice",
+          "label": "Mi Cloud (core)",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.cloudservice.sysapp",
+          "label": "Mi Cloud (sysapp)",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.cloudbackup",
+          "label": "Mi Cloud Backup",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.micloudsync",
+          "label": "Mi Cloud Sync",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.mishare.connectivity",
+          "label": "Mi Share",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.xiaomi.scanner",
+          "label": "Mi Scanner",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.screenrecorder",
+          "label": "Screen Recorder",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.xiaomi.vipaccount",
+          "label": "Mi Community / VIP",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.miui.virtualsim",
+          "label": "Virtual SIM",
+          "description": "optional",
+          "safe": true
+        },
+        {
+          "package": "com.android.thememanager",
+          "label": "Theme Store",
+          "description": "optional",
+          "safe": true
+        }
+      ]
+    },
+    {
+      "name": "Advanced Risky",
+      "entries": [
+        {
+          "package": "com.xiaomi.joyose",
+          "label": "Joyose (Game Perf) — risky",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.miui.daemon",
+          "label": "MiuiDaemon (Telemetri) — risky",
+          "description": "advanced",
+          "safe": false
+        },
+        {
+          "package": "com.miui.powerkeeper",
+          "label": "PowerKeeper (Baterai) — risky",
+          "description": "advanced",
+          "safe": false
+        }
+      ]
+    }
+  ]
+}
