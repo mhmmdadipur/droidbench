@@ -168,7 +168,7 @@ export function DebloatTab() {
       </label>
 
       {/* package list */}
-      <div className="mb-3 max-h-[46vh] overflow-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="mb-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
         {loading ? (
           <div className="p-4 text-sm text-[var(--color-ink-faint)]">Loading database…</div>
         ) : !db ? (

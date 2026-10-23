@@ -108,19 +108,20 @@ function BottomToolbar() {
 
 function Shell() {
   const [tab, setTab] = useState<TabId>("adb");
+  const activeTab = TABS.find((t) => t.id === tab);
 
   return (
     <div className="flex h-screen flex-col bg-[var(--color-bg)]">
       <TitleBar />
 
       <div className="flex min-h-0 flex-1 gap-3 p-3">
-        {/* LEFT panel */}
-        <div className="flex w-[300px] shrink-0 flex-col gap-3">
+        {/* COLUMN 1 — status + navigation (slim) */}
+        <div className="flex w-[210px] shrink-0 flex-col gap-3">
           <DeviceStatus />
           <ToolsBar />
 
-          {/* tab bar */}
-          <div className="grid grid-cols-3 gap-1.5">
+          {/* vertical tab bar (one per row, roomy) */}
+          <div className="flex flex-col gap-1">
             {TABS.map((tb) => {
               const Icon = tb.icon;
               const active = tab === tb.id;
@@ -128,28 +129,38 @@ function Shell() {
                 <button
                   key={tb.id}
                   onClick={() => setTab(tb.id)}
-                  className={`no-drag flex flex-col items-center gap-1 rounded-lg border py-2 text-[11px] font-medium transition-colors ${
+                  className={`no-drag flex items-center gap-2.5 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors ${
                     active
                       ? "border-[var(--color-brand)] bg-[var(--color-brand-50)] text-[var(--color-brand-600)]"
-                      : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+                      : "border-transparent text-[var(--color-ink-soft)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]"
                   }`}
                 >
-                  <Icon size={16} />
+                  <Icon size={16} className="shrink-0" />
                   {tb.label}
                 </button>
               );
             })}
           </div>
 
-          {/* tab content (scrolls) */}
-          <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
-            <TabContent tab={tab} />
+          <div className="mt-auto">
+            <BottomToolbar />
           </div>
-
-          <BottomToolbar />
         </div>
 
-        {/* RIGHT: log, or live mirror when mirroring */}
+        {/* COLUMN 2 — active tab content (roomy, no nested scroll cramping) */}
+        <div className="flex w-[320px] shrink-0 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
+          <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
+            {activeTab && <activeTab.icon size={16} className="text-[var(--color-brand-600)]" />}
+            <span className="text-[13px] font-semibold text-[var(--color-ink)]">
+              {activeTab?.label}
+            </span>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto p-4">
+            <TabContent tab={tab} />
+          </div>
+        </div>
+
+        {/* COLUMN 3 — command log / live mirror */}
         <div className="min-w-0 flex-1">
           <RightPanel />
         </div>
