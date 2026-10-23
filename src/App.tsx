@@ -60,18 +60,19 @@ function BottomToolbar() {
   const item = (label: string, Icon: typeof Smartphone, onClick: () => void) => (
     <button
       onClick={onClick}
-      className="no-drag flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-2 text-xs font-medium text-[var(--color-ink-soft)] transition-colors hover:border-[var(--color-brand)] hover:text-[var(--color-brand-600)]"
+      title={label}
+      className="no-drag flex h-14 flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-1 text-center text-[10px] font-medium leading-tight text-[var(--color-ink-soft)] transition-colors hover:border-[var(--color-brand)] hover:text-[var(--color-brand-600)]"
     >
-      <Icon size={14} />
-      {label}
+      <Icon size={15} className="shrink-0" />
+      <span className="w-full truncate">{label}</span>
     </button>
   );
   return (
-    <div className="flex gap-2">
-      {item("File Explorer", FolderOpen, () => push("File Explorer: not yet wired.", "system"))}
+    <div className="flex gap-1.5">
+      {item("Files", FolderOpen, () => push("File Explorer: not yet wired.", "system"))}
       {item("Terminal", Terminal, () => push("Terminal: not yet wired.", "system"))}
-      {item("Dev Manager", Cpu, () => push("Device Manager: not yet wired.", "system"))}
-      {item("Install Driver", Download, () => push("Install Driver: not yet wired.", "system"))}
+      {item("Dev Mgr", Cpu, () => push("Device Manager: not yet wired.", "system"))}
+      {item("Driver", Download, () => push("Install Driver: not yet wired.", "system"))}
     </div>
   );
 }
