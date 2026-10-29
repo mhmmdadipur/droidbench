@@ -18,6 +18,7 @@ export function AdbTab() {
   const [recording, setRecording] = useState(false);
   const [recDevPath, setRecDevPath] = useState("");
   const [recDest, setRecDest] = useState("");
+  const [wifiIp, setWifiIp] = useState("");
 
   function guard(): boolean {
     if (!device.connected || device.mode !== "adb") {
@@ -179,6 +180,40 @@ export function AdbTab() {
         </Row>
         <Button size="block" title={tr("adb.backupContactsHint")} onClick={backupContacts}>
           <Contact size={14} /> {tr("adb.backupContacts")}
+        </Button>
+      </Section>
+
+      <Section title={tr("adb.wireless")}>
+        <div className="mb-1 flex items-start gap-2 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] leading-snug text-sky-800">
+          <span className="mt-[1px] shrink-0">📶</span>
+          <span>{tr("adb.wirelessDesc")}</span>
+        </div>
+        <Row>
+          <Button title={tr("adb.wirelessEnableHint")} onClick={() => t.adb(["tcpip", "5555"])}>
+            {tr("adb.wirelessEnable")}
+          </Button>
+          <Button title={tr("adb.wirelessUsbHint")} onClick={() => t.raw("adb", ["usb"], true)}>
+            {tr("adb.wirelessUsb")}
+          </Button>
+        </Row>
+        <input
+          value={wifiIp}
+          onChange={(e) => setWifiIp(e.target.value)}
+          placeholder={tr("adb.wirelessIp")}
+          className="no-drag w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12px] text-[var(--color-ink)] outline-none focus:border-[var(--color-brand)]"
+        />
+        <Button
+          size="block"
+          variant="primary"
+          title={tr("adb.wirelessConnectHint")}
+          onClick={() => {
+            const ip = wifiIp.trim();
+            if (!ip) return;
+            const target = ip.includes(":") ? ip : `${ip}:5555`;
+            t.raw("adb", ["connect", target], true);
+          }}
+        >
+          {tr("adb.wirelessConnect")}
         </Button>
       </Section>
 

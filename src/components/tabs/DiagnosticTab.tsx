@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   RefreshCw,
   Copy,
@@ -14,12 +14,10 @@ import {
   XCircle,
   Circle,
   Phone,
-  Folder,
-  FileText,
-  ChevronLeft,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "../ui/Button";
-import { Row, Section, TabHelp } from "../ui/Section";
+import { Section, TabHelp } from "../ui/Section";
 import { runCapture } from "../../lib/api";
 import { useLog } from "../../state/log";
 import { useDevice } from "../../state/device";
@@ -30,16 +28,20 @@ import {
   computeScore,
   fmtKb,
   fmtUAh,
-  listDir,
-  readDeviceFile,
   SENSOR_KEYS,
   OPTIONAL_SENSORS,
   type DiagnosticReport,
   type SensorKey,
-  type FsEntry,
 } from "../../lib/diagnostics";
 
 type Mode = "simple" | "technical";
+
+/** A plausible µAh battery capacity (Qualcomm charge_full*) is ~1–10 million.
+ * MediaTek energy_full* values are a different unit, so we only show the mAh
+ * capacity rows when the number is in the µAh range. */
+function isUAh(v: number | null): v is number {
+  return v != null && v >= 1_000_000 && v <= 20_000_000;
+}
 
 // Raw getprop rows shown in technical mode.
 const PROPS: { key: string; labelKey: TKey; hintKey: TKey }[] = [
@@ -432,11 +434,11 @@ function AuthRow({ k, v, tone }: { k: string; v: string; tone: Tone }) {
           ? "bg-[var(--color-danger)]"
           : "bg-slate-300";
   return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-[var(--color-ink-faint)]">{k}</span>
-      <span className={`flex items-center gap-1.5 text-right font-medium ${color}`}>
-        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-        {v}
+    <div className="flex items-start justify-between gap-2">
+      <span className="shrink-0 pt-px text-[var(--color-ink-faint)]">{k}</span>
+      <span className={`flex items-start gap-1.5 text-right font-medium ${color}`}>
+        <span className={`mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+        <span className="break-words">{v}</span>
       </span>
     </div>
   );
@@ -522,19 +524,22 @@ function SimpleView({ report }: { report: DiagnosticReport }) {
         {b.healthPct != null ? (
           <KV k={t("diag.bat.health")} v={t("diag.bat.healthFromCap", { pct: b.healthPct })} strong />
         ) : (
-          <>
-            <KV k={t("diag.bat.healthRaw")} v={b.healthRaw} strong />
-            <p className="text-[10px] leading-snug text-[var(--color-ink-faint)]">
-              {t("diag.bat.noCap")}
-            </p>
-          </>
+          <KV k={t("diag.bat.healthRaw")} v={b.healthRaw} strong />
         )}
-        {b.designCapacity != null && <KV k={t("diag.bat.design")} v={fmtUAh(b.designCapacity)} />}
-        {b.maxCapacity != null && <KV k={t("diag.bat.current")} v={fmtUAh(b.maxCapacity)} />}
+        {isUAh(b.designCapacity) && <KV k={t("diag.bat.design")} v={fmtUAh(b.designCapacity)} />}
+        {isUAh(b.maxCapacity) && <KV k={t("diag.bat.current")} v={fmtUAh(b.maxCapacity)} />}
         <KV k={t("diag.bat.level")} v={b.level != null ? `${b.level}%` : "—"} />
         <KV k={t("diag.bat.temp")} v={b.tempC != null ? `${b.tempC}°C` : "—"} />
+        <KV k={t("diag.bat.voltage")} v={b.voltage != null ? `${(b.voltage / 1000).toFixed(3)} V` : "—"} />
+        <KV k={t("diag.bat.tech")} v={b.technology} />
+        <KV k={t("diag.bat.status")} v={b.statusText} />
         {bandText && (
           <p className="mt-1 text-[10.5px] leading-snug text-[var(--color-ink-faint)]">{bandText}</p>
+        )}
+        {b.healthPct == null && (
+          <p className="mt-1 text-[10px] leading-snug text-[var(--color-ink-faint)]">
+            {t("diag.bat.noCap")}
+          </p>
         )}
       </Card>
 
@@ -543,32 +548,28 @@ function SimpleView({ report }: { report: DiagnosticReport }) {
         <p className="mt-1 text-[10.5px] leading-snug text-[var(--color-ink-faint)]">{t("diag.auth.h")}</p>
       </Card>
 
-      <Row>
-        <Card icon={Smartphone} title={t("diag.card.screen")}>
-          <KV k={t("diag.scr.resolution")} v={report.screen.resolution} />
-          <KV k={t("diag.scr.refresh")} v={report.screen.refreshHz} />
-          <KV k={t("diag.scr.nits")} v={report.screen.maxNits} />
-        </Card>
-        <Card icon={Cpu} title={t("diag.card.cpu")}>
-          <KV k={t("diag.cpu.cores")} v={report.cpu.cores != null ? String(report.cpu.cores) : "—"} />
-          <KV k={t("diag.cpu.chipset")} v={report.cpu.chipset} />
-          <KV
-            k={t("diag.card.camera")}
-            v={report.camera.count != null ? String(report.camera.count) : "—"}
-          />
-        </Card>
-      </Row>
+      <Card icon={Smartphone} title={t("diag.card.screen")}>
+        <KV k={t("diag.scr.resolution")} v={report.screen.resolution} />
+        <KV k={t("diag.scr.refresh")} v={report.screen.refreshHz} />
+        <KV k={t("diag.scr.nits")} v={report.screen.maxNits} />
+      </Card>
+      <Card icon={Cpu} title={t("diag.card.cpu")}>
+        <KV k={t("diag.cpu.cores")} v={report.cpu.cores != null ? String(report.cpu.cores) : "—"} />
+        <KV k={t("diag.cpu.chipset")} v={report.cpu.chipset} />
+        <KV
+          k={t("diag.card.camera")}
+          v={report.camera.count != null ? String(report.camera.count) : "—"}
+        />
+      </Card>
 
-      <Row>
-        <Card icon={MemoryStick} title={t("diag.card.memory")}>
-          <KV k={t("diag.mem.total")} v={fmtKb(report.memory.totalKb)} strong />
-          <KV k={t("diag.mem.available")} v={fmtKb(report.memory.availKb)} />
-        </Card>
-        <Card icon={HardDrive} title={t("diag.card.storage")}>
-          <KV k={t("diag.sto.total")} v={fmtKb(report.storage.totalKb)} strong />
-          <KV k={t("diag.sto.free")} v={fmtKb(report.storage.freeKb)} />
-        </Card>
-      </Row>
+      <Card icon={MemoryStick} title={t("diag.card.memory")}>
+        <KV k={t("diag.mem.total")} v={fmtKb(report.memory.totalKb)} strong />
+        <KV k={t("diag.mem.available")} v={fmtKb(report.memory.availKb)} />
+      </Card>
+      <Card icon={HardDrive} title={t("diag.card.storage")}>
+        <KV k={t("diag.sto.total")} v={fmtKb(report.storage.totalKb)} strong />
+        <KV k={t("diag.sto.free")} v={fmtKb(report.storage.freeKb)} />
+      </Card>
 
       <Card icon={Radar} title={t("diag.card.sensors")}>
         <p className="mb-1 text-[10.5px] text-[var(--color-ink-faint)]">
@@ -629,8 +630,8 @@ function TechnicalView({ report }: { report: DiagnosticReport }) {
 
       <Section title={t("diag.card.battery")}>
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-[11.5px]">
-          <KV k={t("diag.bat.design")} v={fmtUAh(b.designCapacity)} />
-          <KV k={t("diag.bat.current")} v={fmtUAh(b.maxCapacity)} />
+          {isUAh(b.designCapacity) && <KV k={t("diag.bat.design")} v={fmtUAh(b.designCapacity)} />}
+          {isUAh(b.maxCapacity) && <KV k={t("diag.bat.current")} v={fmtUAh(b.maxCapacity)} />}
           <KV k={t("diag.bat.health")} v={b.healthPct != null ? `${b.healthPct}%` : "—"} strong />
           <KV k={t("diag.bat.level")} v={b.level != null ? `${b.level}%` : "—"} />
           <KV k={t("diag.bat.temp")} v={b.tempC != null ? `${b.tempC}°C` : "—"} />
@@ -656,6 +657,7 @@ function TechnicalView({ report }: { report: DiagnosticReport }) {
           <KV k={t("diag.sto.total")} v={fmtKb(report.storage.totalKb)} />
           <KV k={t("diag.sto.free")} v={fmtKb(report.storage.freeKb)} />
           <KV k={t("diag.sys.uptime")} v={report.system.uptime} />
+          <KV k={t("diag.sys.temp")} v={report.system.maxTempC != null ? `${report.system.maxTempC}°C` : "—"} />
           <KV k={t("diag.sys.securityPatch")} v={report.system.securityPatch} />
           <KV k={t("diag.sys.buildDate")} v={report.system.buildDate} />
           <KV k={t("diag.sys.encrypted")} v={report.system.encrypted} />
@@ -710,61 +712,37 @@ function TechnicalView({ report }: { report: DiagnosticReport }) {
         </Section>
       )}
 
-      {report.system.rooted && <FileBrowser />}
+      {report.system.rooted && <FileBrowserLauncher />}
     </>
   );
 }
 
 // ─── read-only file browser ─────────────────────────────────────────────────
 
-function FileBrowser() {
+// ─── read-only file browser launcher (opens a separate window) ──────────────
+
+function FileBrowserLauncher() {
   const { t } = useI18n();
-  const [path, setPath] = useState("/data/adb/modules");
-  const [entries, setEntries] = useState<FsEntry[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [fileBody, setFileBody] = useState("");
+  const { push } = useLog();
 
-  async function load(p: string) {
-    setLoading(true);
-    setFileName(null);
-    try {
-      setEntries(await listDir(p));
-      setPath(p);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load(path);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function joinPath(base: string, name: string) {
-    return base.endsWith("/") ? base + name : `${base}/${name}`;
-  }
-  function parentOf(p: string) {
-    const trimmed = p.replace(/\/+$/, "");
-    const idx = trimmed.lastIndexOf("/");
-    return idx <= 0 ? "/" : trimmed.slice(0, idx);
-  }
-
-  async function openEntry(e: FsEntry) {
-    if (e.isDir) {
-      load(joinPath(path, e.name));
-    } else {
-      setLoading(true);
-      try {
-        const body = await readDeviceFile(joinPath(path, e.name));
-        setFileName(e.name);
-        // crude binary guard: lots of non-printable chars
-        const nonPrintable = (body.match(/[^\x09\x0a\x0d\x20-\x7e]/g) || []).length;
-        setFileBody(nonPrintable > body.length * 0.3 ? "" : body);
-      } finally {
-        setLoading(false);
-      }
-    }
+  async function openExplorer() {
+    push("Opening File Explorer…", "system");
+    const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+    const win = new WebviewWindow("explorer", {
+      url: "index.html?view=explorer",
+      title: "Droidbench File Explorer",
+      width: 1000,
+      height: 680,
+      minWidth: 720,
+      minHeight: 480,
+      resizable: true,
+      decorations: false,
+      shadow: true,
+      transparent: true,
+    });
+    win.once("tauri://error", (e) => {
+      push(`Explorer window error: ${JSON.stringify(e.payload)}`, "stderr");
+    });
   }
 
   return (
@@ -772,77 +750,10 @@ function FileBrowser() {
       <p className="mb-1 text-[10.5px] leading-snug text-[var(--color-ink-faint)]">
         {t("diag.fs.intro")}
       </p>
-
-      {/* path bar */}
-      <div className="mb-1 flex items-center gap-1">
-        <button
-          onClick={() => load(parentOf(path))}
-          title={t("diag.fs.up")}
-          className="no-drag flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-ink-soft)] hover:bg-[var(--color-surface-2)]"
-        >
-          <ChevronLeft size={12} /> {t("diag.fs.up")}
-        </button>
-        <span className="min-w-0 flex-1 truncate rounded-md bg-[var(--color-surface-2)] px-2 py-1 font-mono text-[10.5px] text-[var(--color-ink-soft)]">
-          {path}
-        </span>
-      </div>
-
-      {fileName ? (
-        <div className="rounded-lg border border-[var(--color-border)]">
-          <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5">
-            <FileText size={13} className="text-[var(--color-brand-600)]" />
-            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-[var(--color-ink)]">
-              {fileName}
-            </span>
-            <button
-              onClick={() => setFileName(null)}
-              className="no-drag rounded px-1.5 py-0.5 text-[10px] text-[var(--color-ink-soft)] hover:bg-[var(--color-bg)]"
-            >
-              {t("diag.fs.close")}
-            </button>
-          </div>
-          <pre className="max-h-[260px] overflow-auto whitespace-pre-wrap break-words p-2 font-mono text-[10.5px] leading-snug text-[var(--color-ink)]">
-            {fileBody || t("diag.fs.binary")}
-          </pre>
-        </div>
-      ) : (
-        <div className="max-h-[260px] overflow-auto rounded-lg border border-[var(--color-border)]">
-          {loading ? (
-            <div className="px-3 py-3 text-[11px] text-[var(--color-ink-faint)]">
-              {t("common.loading")}
-            </div>
-          ) : entries.length === 0 ? (
-            <div className="px-3 py-3 text-[11px] text-[var(--color-ink-faint)]">
-              {t("diag.fs.empty")}
-            </div>
-          ) : (
-            entries.map((e) => (
-              <button
-                key={e.name}
-                onClick={() => openEntry(e)}
-                className="flex w-full items-center gap-2 border-b border-[var(--color-border)] px-3 py-1.5 text-left text-[11.5px] last:border-0 hover:bg-[var(--color-bg)]"
-              >
-                {e.isDir ? (
-                  <Folder size={13} className="shrink-0 text-amber-500" />
-                ) : (
-                  <FileText size={13} className="shrink-0 text-[var(--color-ink-faint)]" />
-                )}
-                <span className="min-w-0 flex-1 truncate font-mono text-[var(--color-ink)]">
-                  {e.name}
-                </span>
-                {!e.isDir && e.size != null && (
-                  <span className="shrink-0 text-[9.5px] text-[var(--color-ink-faint)]">
-                    {e.size} B
-                  </span>
-                )}
-                <span className="shrink-0 font-mono text-[9px] text-[var(--color-ink-faint)]">
-                  {e.perms}
-                </span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
+      <Button size="block" variant="primary" title={t("explorer.openHint")} onClick={openExplorer}>
+        <FolderOpen size={14} />
+        {t("explorer.open")}
+      </Button>
     </Section>
   );
 }

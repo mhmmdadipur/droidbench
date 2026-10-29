@@ -399,37 +399,45 @@ pub async fn run_command(
         });
     }
 
-    // wait for completion in a background task
+    // Wait for completion in a background task WITHOUT removing the child from
+    // the map — otherwise `cancel_command` would have nothing to kill for
+    // long-running commands (e.g. `adb logcat`). We poll with try_wait and keep
+    // the child registered so it stays killable until it actually exits.
     let running = state.running.clone();
     let app4 = app.clone();
     let id4 = id.clone();
     tokio::spawn(async move {
-        // take the child back out to wait on it
-        let child_opt = running.lock().await.remove(&id4);
-        if let Some(mut child) = child_opt {
-            let status = child.wait().await;
-            match status {
-                Ok(s) => {
-                    let _ = app4.emit(
-                        "command-done",
-                        CommandDone {
+        use std::time::Duration;
+        loop {
+            let done: Option<CommandDone> = {
+                let mut map = running.lock().await;
+                match map.get_mut(&id4) {
+                    None => {
+                        // cancel_command removed (and killed) it → stop; the
+                        // canceller already handled cleanup.
+                        break;
+                    }
+                    Some(child) => match child.try_wait() {
+                        Ok(Some(status)) => Some(CommandDone {
                             id: id4.clone(),
-                            code: s.code(),
-                            success: s.success(),
-                        },
-                    );
-                }
-                Err(_) => {
-                    let _ = app4.emit(
-                        "command-done",
-                        CommandDone {
+                            code: status.code(),
+                            success: status.success(),
+                        }),
+                        Ok(None) => None, // still running
+                        Err(_) => Some(CommandDone {
                             id: id4.clone(),
                             code: None,
                             success: false,
-                        },
-                    );
+                        }),
+                    },
                 }
+            };
+            if let Some(done) = done {
+                running.lock().await.remove(&id4);
+                let _ = app4.emit("command-done", done);
+                break;
             }
+            tokio::time::sleep(Duration::from_millis(150)).await;
         }
     });
 

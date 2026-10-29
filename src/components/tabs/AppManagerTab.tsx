@@ -106,8 +106,12 @@ export function AppManagerTab() {
         (p) => p.toLowerCase().includes(q) || deriveAppName(p).toLowerCase().includes(q),
       );
     }
-    if (kind === "menu") list = list.filter((p) => launchable.has(p));
-    else list = list.filter((p) => !launchable.has(p));
+    // Only split by launcher presence when we actually have launcher data;
+    // otherwise (parse failed / not scanned yet) don't hide everything.
+    if (launchable.size > 0) {
+      if (kind === "menu") list = list.filter((p) => launchable.has(p));
+      else list = list.filter((p) => !launchable.has(p));
+    }
     return list.slice(0, 300);
   }, [all, query, kind, launchable]);
 
@@ -145,6 +149,19 @@ export function AppManagerTab() {
       "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
       "-d", `package:${pkg}`,
     ]);
+  }
+
+  async function viewPerms(pkg: string) {
+    if (!guard()) return;
+    push(`── Permissions: ${pkg} ──`, "system");
+    try {
+      const out = await runCapture("adb", ["shell", "cmd", "appops", "get", pkg]);
+      const lines = out.trim().split("\n").filter(Boolean);
+      if (lines.length === 0) push("(no appops entries / all default)", "stdout");
+      else lines.forEach((l) => push(l.trim(), "stdout"));
+    } catch (e) {
+      push(String(e), "stderr");
+    }
   }
 
   async function extractApk(pkg: string) {
@@ -358,8 +375,10 @@ export function AppManagerTab() {
   }
 
   function dbStatusOf(pkg: string): "on" | "off" | "absent" {
+    // Not scanned yet → unknown (shown as the grey "—" default).
+    if (all.length === 0) return "absent";
     if (disabled.has(pkg)) return "off";
-    if (all.length > 0 && !all.includes(pkg)) return "absent";
+    if (!all.includes(pkg)) return "absent";
     return "on";
   }
 
@@ -577,13 +596,18 @@ export function AppManagerTab() {
             <Button title={t("app.appInfoHint")} onClick={() => openAppInfo(sel)}>
               {t("app.appInfo")}
             </Button>
+            <Button title={t("app.permsHint")} onClick={() => viewPerms(sel)}>
+              {t("app.perms")}
+            </Button>
+          </Row>
+          <Row>
             <Button title={t("app.extractHint")} onClick={() => extractApk(sel)}>
               {t("app.extract")}
             </Button>
+            <Button size="md" variant="danger" title={t("app.uninstallHint")} onClick={() => uninstallApp(sel)}>
+              {t("app.uninstall")}
+            </Button>
           </Row>
-          <Button size="block" variant="danger" title={t("app.uninstallHint")} onClick={() => uninstallApp(sel)}>
-            {t("app.uninstall")}
-          </Button>
         </Section>
       )}
 

@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for app windows",
-  "windows": ["main", "mirror"],
+  "windows": ["main", "mirror", "explorer"],
   "permissions": [
     "core:default",
     "core:window:allow-minimize",

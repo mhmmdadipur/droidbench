@@ -52,6 +52,7 @@ export interface SystemInfo {
   buildDate: string;
   encrypted: string;
   rooted: boolean;
+  maxTempC: number | null;
   authenticity: "original" | "modified" | "unknown";
   // granular signals for the split "System & Authenticity" view
   bootloader: "locked" | "unlocked" | "unknown";
@@ -413,17 +414,24 @@ export async function runDiagnosticScan(): Promise<DiagnosticReport> {
     selinux,
     uptimeProc,
     cameraDump,
+    thermalDump,
     suCheck,
     rootModulesDump,
     rootMarkers,
   ] = await Promise.all([
     runCapture("adb", ["shell", "getprop"]),
     runCapture("adb", ["shell", "dumpsys", "battery"]),
+    // sysfs fallback for capacity: scan every power-supply node for either the
+    // Qualcomm (charge_full*) or MediaTek (energy_full*) naming. Tag the first
+    // non-empty design/full pair so the parser can read it. Works on many
+    // non-rooted phones (e.g. MediaTek mt6xxx-gauge exposes energy_full*).
     runCapture("adb", [
       "shell",
-      "for d in /sys/class/power_supply/battery /sys/class/power_supply/bms; do " +
-        "echo DF_DESIGN $(cat $d/charge_full_design 2>/dev/null); " +
-        "echo DF_FULL $(cat $d/charge_full 2>/dev/null); done",
+      'for d in /sys/class/power_supply/*; do ' +
+        'for a in charge_full_design energy_full_design; do v=$(cat $d/$a 2>/dev/null); ' +
+        '[ -n "$v" ] && echo DF_DESIGN $v; done; ' +
+        'for a in charge_full energy_full; do v=$(cat $d/$a 2>/dev/null); ' +
+        '[ -n "$v" ] && echo DF_FULL $v; done; done',
     ]),
     runCapture("adb", ["shell", "wm", "size"]),
     runCapture("adb", ["shell", "wm", "density"]),
@@ -437,6 +445,11 @@ export async function runDiagnosticScan(): Promise<DiagnosticReport> {
     runCapture("adb", ["shell", "getenforce"]),
     runCapture("adb", ["shell", "cat", "/proc/uptime"]),
     runCapture("adb", ["shell", "dumpsys", "media.camera"]),
+    // max temperature across thermal zones (overheating signal for used phones)
+    runCapture("adb", [
+      "shell",
+      "for d in /sys/class/thermal/thermal_zone*; do cat $d/temp 2>/dev/null; done",
+    ]),
     // root indicator: does an `su` binary exist on PATH / common locations?
     runCapture("adb", [
       "shell",
@@ -464,6 +477,15 @@ export async function runDiagnosticScan(): Promise<DiagnosticReport> {
     "—";
   const rooted = /\/su(\s|$)|(^|\n)su(\s|$)/m.test(suCheck) || /bin\/su/.test(suCheck);
   const camCount = num(/Number of camera devices:\s*([0-9]+)/.exec(cameraDump)?.[1]);
+  // thermal: pick the max plausible zone temp (values are milli-°C)
+  let maxTempC: number | null = null;
+  for (const line of thermalDump.split("\n")) {
+    const v = Number(line.trim());
+    if (Number.isFinite(v) && v > 0) {
+      const c = v > 1000 ? v / 1000 : v; // some zones report °C directly
+      if (c > 0 && c < 150 && (maxTempC == null || c > maxTempC)) maxTempC = Math.round(c);
+    }
+  }
   const rootModules = parseRootModules(rootModulesDump);
   // a Play-Integrity-fixing module present → integrity is being spoofed
   const hasIntegrityModule = rootModules.some((m) =>
@@ -489,6 +511,7 @@ export async function runDiagnosticScan(): Promise<DiagnosticReport> {
       buildDate: props.get("ro.build.date") || "—",
       encrypted: props.get("ro.crypto.state") || "—",
       rooted,
+      maxTempC,
       authenticity: authenticityOf(props, rooted),
       bootloader: bootloaderOf(props),
       verifiedBoot: props.get("ro.boot.verifiedbootstate") || "unknown",
@@ -593,6 +616,8 @@ export interface FsEntry {
   isDir: boolean;
   size: number | null;
   perms: string;
+  /** absolute path (set for search results; derived from cwd otherwise) */
+  fullPath?: string;
 }
 
 /** List a directory on the device (read-only) via `su -c ls -la`. */
@@ -629,10 +654,61 @@ export async function listDir(path: string): Promise<FsEntry[]> {
   return entries;
 }
 
-/** Read a text file on the device (read-only). Returns up to ~64 KB. */
+/** Read a text file on the device (read-only). Returns up to ~256 KB. */
 export async function readDeviceFile(path: string): Promise<string> {
   // guard against huge/binary files: cap bytes
-  return runCapture("adb", ["shell", `su -c "head -c 65536 '${path}' 2>&1"`]);
+  return runCapture("adb", ["shell", `su -c "head -c 262144 '${path}' 2>&1"`]);
+}
+
+/** Search file names under a directory (recursive) via `find -iname`. */
+export async function searchFiles(dir: string, term: string): Promise<FsEntry[]> {
+  const safe = term.replace(/["$`\\]/g, "");
+  const out = await runCapture("adb", [
+    "shell",
+    `su -c "find '${dir}' -iname '*${safe}*' 2>/dev/null | head -300"`,
+  ]);
+  return pathsToEntries(out, dir);
+}
+
+/** Search for text inside files under a directory (recursive) via `grep -rl`. */
+export async function searchText(dir: string, term: string): Promise<FsEntry[]> {
+  const safe = term.replace(/["$`\\]/g, "");
+  const out = await runCapture("adb", [
+    "shell",
+    `su -c "grep -rlI '${safe}' '${dir}' 2>/dev/null | head -300"`,
+  ]);
+  return pathsToEntries(out, dir);
+}
+
+/** Turn a newline list of absolute paths into FsEntry rows (best-effort). */
+function pathsToEntries(out: string, _base: string): FsEntry[] {
+  const rows: FsEntry[] = [];
+  for (const raw of out.split("\n")) {
+    const p = raw.trim();
+    if (!p || /Permission denied|No such/i.test(p)) continue;
+    const name = p.replace(/\/+$/, "").split("/").pop() || p;
+    rows.push({ name, isDir: p.endsWith("/"), size: null, perms: "", fullPath: p });
+  }
+  return rows;
+}
+
+/** Get a human size for a file or folder via stat/du. */
+export async function deviceSize(path: string, isDir: boolean): Promise<string> {
+  const cmd = isDir
+    ? `su -c "du -sh '${path}' 2>/dev/null | cut -f1"`
+    : `su -c "stat -c %s '${path}' 2>/dev/null"`;
+  const out = (await runCapture("adb", ["shell", cmd])).trim();
+  if (!out) return "—";
+  if (isDir) return out;
+  const n = Number(out);
+  return Number.isFinite(n) ? humanBytes(n) : out;
+}
+
+function humanBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(1)} GB`;
 }
 
 /** Format /proc/uptime (first field = seconds) into "Xh Ym". */

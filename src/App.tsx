@@ -17,8 +17,10 @@ import { TitleBar } from "./components/TitleBar";
 import { DeviceStatus } from "./components/DeviceStatus";
 import { ToolsBar } from "./components/ToolsBar";
 import { LogPanel } from "./components/LogPanel";
+import { SetupWizard } from "./components/SetupWizard";
 import { MirrorView } from "./components/mirror/MirrorView";
 import { MirrorTitleBar } from "./components/mirror/MirrorTitleBar";
+import { FileExplorer } from "./components/explorer/FileExplorer";
 import { AdbTab } from "./components/tabs/AdbTab";
 import { FastbootTab } from "./components/tabs/FastbootTab";
 import { XiaomiTab } from "./components/tabs/XiaomiTab";
@@ -28,7 +30,7 @@ import { DiagnosticTab } from "./components/tabs/DiagnosticTab";
 import { ConnectivityTab } from "./components/tabs/ConnectivityTab";
 import { AppManagerTab } from "./components/tabs/AppManagerTab";
 import { LogcatTab } from "./components/tabs/LogcatTab";
-import { DeviceProvider } from "./state/device";
+import { DeviceProvider, useDevice } from "./state/device";
 import { LogProvider, useLog } from "./state/log";
 import { ToolsProvider } from "./state/tools";
 import { MirrorProvider } from "./state/mirror";
@@ -48,16 +50,23 @@ type TabId =
   | "samsung"
   | "dumper";
 
-const TABS: { id: TabId; labelKey: TKey; icon: typeof Smartphone; descKey: TKey }[] = [
-  { id: "adb", labelKey: "tab.adb", icon: Smartphone, descKey: "tab.adb.desc" },
-  { id: "diagnostic", labelKey: "tab.diagnostic", icon: Stethoscope, descKey: "tab.diagnostic.desc" },
-  { id: "appmanager", labelKey: "tab.appmanager", icon: LayoutGrid, descKey: "tab.appmanager.desc" },
-  { id: "logcat", labelKey: "tab.logcat", icon: ScrollText, descKey: "tab.logcat.desc" },
-  { id: "connectivity", labelKey: "tab.connectivity", icon: Wifi, descKey: "tab.connectivity.desc" },
-  { id: "fastboot", labelKey: "tab.fastboot", icon: Zap, descKey: "tab.fastboot.desc" },
-  { id: "xiaomi", labelKey: "tab.xiaomi", icon: Boxes, descKey: "tab.xiaomi.desc" },
-  { id: "samsung", labelKey: "tab.samsung", icon: PackageOpen, descKey: "tab.samsung.desc" },
-  { id: "dumper", labelKey: "tab.dumper", icon: Download, descKey: "tab.dumper.desc" },
+type TabGroup = "device" | "flashing";
+
+const TABS: { id: TabId; labelKey: TKey; icon: typeof Smartphone; descKey: TKey; group: TabGroup }[] = [
+  { id: "adb", labelKey: "tab.adb", icon: Smartphone, descKey: "tab.adb.desc", group: "device" },
+  { id: "diagnostic", labelKey: "tab.diagnostic", icon: Stethoscope, descKey: "tab.diagnostic.desc", group: "device" },
+  { id: "appmanager", labelKey: "tab.appmanager", icon: LayoutGrid, descKey: "tab.appmanager.desc", group: "device" },
+  { id: "logcat", labelKey: "tab.logcat", icon: ScrollText, descKey: "tab.logcat.desc", group: "device" },
+  { id: "connectivity", labelKey: "tab.connectivity", icon: Wifi, descKey: "tab.connectivity.desc", group: "device" },
+  { id: "fastboot", labelKey: "tab.fastboot", icon: Zap, descKey: "tab.fastboot.desc", group: "flashing" },
+  { id: "xiaomi", labelKey: "tab.xiaomi", icon: Boxes, descKey: "tab.xiaomi.desc", group: "flashing" },
+  { id: "samsung", labelKey: "tab.samsung", icon: PackageOpen, descKey: "tab.samsung.desc", group: "flashing" },
+  { id: "dumper", labelKey: "tab.dumper", icon: Download, descKey: "tab.dumper.desc", group: "flashing" },
+];
+
+const GROUPS: { id: TabGroup; labelKey: TKey; hintKey: TKey }[] = [
+  { id: "device", labelKey: "nav.group.device", hintKey: "nav.group.deviceHint" },
+  { id: "flashing", labelKey: "nav.group.flashing", hintKey: "nav.group.flashingHint" },
 ];
 
 function TabContent({ tab }: { tab: TabId }) {
@@ -137,8 +146,22 @@ function BottomToolbar() {
 
 function Shell() {
   const [tab, setTab] = useState<TabId>("adb");
+  const [group, setGroup] = useState<TabGroup>("device");
   const { t } = useI18n();
+  const { device } = useDevice();
   const activeTab = TABS.find((t) => t.id === tab);
+  const groupTabs = TABS.filter((tb) => tb.group === group);
+  const activeGroup = GROUPS.find((g) => g.id === group);
+  // Show the setup/connection wizard whenever there's no ready adb device —
+  // nothing in the tabs works without one, and first-time users need guidance.
+  const needsSetup = !(device.connected && device.mode === "adb");
+
+  function switchGroup(g: TabGroup) {
+    setGroup(g);
+    // jump to the first tab of the newly selected group
+    const first = TABS.find((tb) => tb.group === g);
+    if (first) setTab(first.id);
+  }
 
   return (
     <div className="flex h-screen flex-col bg-[var(--color-bg)]">
@@ -150,13 +173,31 @@ function Shell() {
           <DeviceStatus />
           <ToolsBar />
 
-          {/* vertical tab bar with label + description */}
+          {/* group switcher (segmented) */}
+          <div className="flex gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-sm">
+            {GROUPS.map((g) => (
+              <button
+                key={g.id}
+                title={t(g.hintKey)}
+                onClick={() => switchGroup(g.id)}
+                className={`no-drag flex-1 rounded-lg px-2 py-2 text-[12px] font-semibold transition-colors ${
+                  group === g.id
+                    ? "bg-[var(--color-brand)] text-white shadow-sm"
+                    : "text-[var(--color-ink-soft)] hover:bg-[var(--color-surface-2)]"
+                }`}
+              >
+                {t(g.labelKey)}
+              </button>
+            ))}
+          </div>
+
+          {/* vertical tab bar with label + description (filtered by group) */}
           <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-sm">
             <div className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
-              {t("nav.tools")}
+              {activeGroup && t(activeGroup.labelKey)}
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto">
-              {TABS.map((tb) => {
+              {groupTabs.map((tb) => {
                 const Icon = tb.icon;
                 const active = tab === tb.id;
                 return (
@@ -205,13 +246,24 @@ function Shell() {
         {/* COLUMN 2 — active tab content (roomy, no nested scroll cramping) */}
         <div className="flex w-[330px] shrink-0 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
           <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
-            {activeTab && <activeTab.icon size={16} className="text-[var(--color-brand-600)]" />}
-            <span className="text-[13px] font-semibold text-[var(--color-ink)]">
-              {activeTab && t(activeTab.labelKey)}
-            </span>
+            {needsSetup ? (
+              <>
+                <Smartphone size={16} className="text-[var(--color-brand-600)]" />
+                <span className="text-[13px] font-semibold text-[var(--color-ink)]">
+                  {t("setup.title")}
+                </span>
+              </>
+            ) : (
+              <>
+                {activeTab && <activeTab.icon size={16} className="text-[var(--color-brand-600)]" />}
+                <span className="text-[13px] font-semibold text-[var(--color-ink)]">
+                  {activeTab && t(activeTab.labelKey)}
+                </span>
+              </>
+            )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-4">
-            <TabContent tab={tab} />
+            {needsSetup ? <SetupWizard /> : <TabContent tab={tab} />}
           </div>
         </div>
 
@@ -273,12 +325,23 @@ function MirrorPage() {
 export default function App() {
   // The mirror runs in its own window (?view=mirror), fully separate from the
   // main Droidbench window.
-  const isMirror = new URLSearchParams(window.location.search).get("view") === "mirror";
-  if (isMirror) {
+  const view = new URLSearchParams(window.location.search).get("view");
+  if (view === "mirror") {
     return (
       <I18nProvider>
         <DeviceProvider>
           <MirrorPage />
+        </DeviceProvider>
+      </I18nProvider>
+    );
+  }
+  if (view === "explorer") {
+    return (
+      <I18nProvider>
+        <DeviceProvider>
+          <LogProvider>
+            <FileExplorer />
+          </LogProvider>
         </DeviceProvider>
       </I18nProvider>
     );

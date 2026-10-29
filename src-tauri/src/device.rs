@@ -10,6 +10,10 @@ use crate::runner::{resolve_tool, run_capture_internal};
 pub struct DeviceInfo {
     pub connected: bool,
     pub mode: String,   // "adb" | "fastboot" | "download" | "none"
+    /// Raw adb connection state when a device is seen on USB but not ready:
+    /// "" (ready/none) | "unauthorized" | "offline"
+    #[serde(rename = "adbState")]
+    pub adb_state: String,
     pub serial: String,
     pub brand: String,
     pub model: String,
@@ -73,6 +77,27 @@ pub async fn detect_device(app: AppHandle) -> Result<DeviceInfo, String> {
             getprop(&app, "ro.build.display.id").await
         };
         return Ok(info);
+    }
+
+    // 1b) a device is plugged in but not ready: unauthorized / offline.
+    // These are crucial for guiding a first-time user through setup.
+    for l in adb_out.lines().skip(1) {
+        let l = l.trim();
+        if l.is_empty() {
+            continue;
+        }
+        if l.ends_with("unauthorized") {
+            info.mode = "none".into();
+            info.adb_state = "unauthorized".into();
+            info.serial = l.split_whitespace().next().unwrap_or("").to_string();
+            return Ok(info);
+        }
+        if l.ends_with("offline") {
+            info.mode = "none".into();
+            info.adb_state = "offline".into();
+            info.serial = l.split_whitespace().next().unwrap_or("").to_string();
+            return Ok(info);
+        }
     }
 
     // 2) fastboot devices

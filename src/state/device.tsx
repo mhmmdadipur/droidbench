@@ -18,6 +18,7 @@ interface DeviceCtx {
 const empty: DeviceInfo = {
   connected: false,
   mode: "none",
+  adbState: "",
   serial: "",
   brand: "",
   model: "",

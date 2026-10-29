@@ -19,6 +19,7 @@ export interface CommandDone {
 export interface DeviceInfo {
   connected: boolean;
   mode: "adb" | "fastboot" | "download" | "none";
+  adbState?: string; // "" | "unauthorized" | "offline"
   serial: string;
   brand: string;
   model: string;
