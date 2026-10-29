@@ -4,10 +4,12 @@ import { Button } from "../ui/Button";
 import { Section, TabHelp } from "../ui/Section";
 import { useTools } from "../../lib/useTools";
 import { useLog } from "../../state/log";
+import { useI18n } from "../../i18n";
 
 export function XiaomiTab() {
   const t = useTools();
   const { push } = useLog();
+  const { t: tr } = useI18n();
   const [fwFolder, setFwFolder] = useState<string>("");
   const [skipProduct, setSkipProduct] = useState(false);
   const [disableAntiRollback, setDisableAntiRollback] = useState(false);
@@ -16,22 +18,22 @@ export function XiaomiTab() {
     const dir = await open({ directory: true, multiple: false });
     if (typeof dir === "string") {
       setFwFolder(dir);
-      push(`Firmware folder selected: ${dir}`, "system");
+      push(tr("xi.folderSelected", { dir }), "system");
     }
   }
 
   function executeFlash() {
     if (!fwFolder) {
-      push("Select a firmware folder first.", "stderr");
+      push(tr("xi.selectFolderFirst"), "stderr");
       return;
     }
-    // MIUI fastboot packages ship flash_all scripts. We locate one and run it.
-    // Best-effort: run the shell/bat flash_all from the folder.
     const script = fwFolder + (skipProduct ? "/flash_all_except_storage" : "/flash_all");
     const ext = navigatorIsWindows() ? ".bat" : ".sh";
     push(
-      `Executing flash script: ${script}${ext}` +
-        (disableAntiRollback ? " (anti-rollback disabled)" : ""),
+      tr("xi.executing", {
+        script: script + ext,
+        arb: disableAntiRollback ? tr("xi.arb") : "",
+      }),
       "system",
     );
     t.raw(script + ext, [], true);
@@ -39,30 +41,21 @@ export function XiaomiTab() {
 
   return (
     <>
-      <TabHelp>
-        Khusus HP <b>Xiaomi / Redmi / POCO</b>. Memasang firmware resmi (ROM)
-        hasil ekstrak paket "fastboot" dari Mi (folder berisi file images +
-        script flash_all). HP harus di mode Fastboot.
-      </TabHelp>
+      <TabHelp>{tr("xi.help")}</TabHelp>
 
-      <Section title="Folder Firmware">
-        <Button
-          size="block"
-          variant="primary"
-          title="Pilih folder hasil ekstrak paket firmware Xiaomi (yang berisi script flash_all)."
-          onClick={pickFolder}
-        >
-          Pilih Folder Firmware
+      <Section title={tr("xi.folderSec")}>
+        <Button size="block" variant="primary" title={tr("xi.pickFolderHint")} onClick={pickFolder}>
+          {tr("xi.pickFolder")}
         </Button>
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-ink-soft)]">
-          {fwFolder || "— belum ada folder dipilih —"}
+          {fwFolder || tr("xi.noFolder")}
         </div>
       </Section>
 
-      <Section title="Opsi">
+      <Section title={tr("xi.options")}>
         <label
           className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]"
-          title="Jangan hapus data pribadi (pakai script flash_all_except_storage). Aman untuk update tanpa kehilangan data."
+          title={tr("xi.keepDataHint")}
         >
           <input
             type="checkbox"
@@ -70,11 +63,11 @@ export function XiaomiTab() {
             onChange={(e) => setSkipProduct(e.target.checked)}
             className="accent-[var(--color-brand)]"
           />
-          Pertahankan data (jangan hapus storage)
+          {tr("xi.keepData")}
         </label>
         <label
           className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]"
-          title="Matikan proteksi anti-rollback. HATI-HATI: salah pakai bisa brick. Hanya untuk yang paham."
+          title={tr("xi.disableArbHint")}
         >
           <input
             type="checkbox"
@@ -82,26 +75,19 @@ export function XiaomiTab() {
             onChange={(e) => setDisableAntiRollback(e.target.checked)}
             className="accent-[var(--color-brand)]"
           />
-          Matikan anti-rollback (berisiko)
+          {tr("xi.disableArb")}
         </label>
       </Section>
 
-      <Section title="Mi Unlock">
+      <Section title={tr("xi.unlockSec")}>
         <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          Membuka bootloader Xiaomi butuh aplikasi resmi "Mi Unlock" + akun Mi
-          yang sudah terdaftar & menunggu masa tunggu. Tidak bisa dilakukan dari
-          sini — gunakan Mi Unlock resmi dari Xiaomi.
+          {tr("xi.unlockNote")}
         </div>
       </Section>
 
       <Section>
-        <Button
-          size="block"
-          variant="danger"
-          title="Jalankan proses flashing firmware. HATI-HATI: proses ini menimpa sistem HP."
-          onClick={executeFlash}
-        >
-          Mulai Flash Firmware
+        <Button size="block" variant="danger" title={tr("xi.flashHint")} onClick={executeFlash}>
+          {tr("xi.flash")}
         </Button>
       </Section>
     </>

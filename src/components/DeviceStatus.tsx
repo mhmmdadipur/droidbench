@@ -1,5 +1,6 @@
 import { RefreshCw } from "lucide-react";
 import { useDevice } from "../state/device";
+import { useI18n } from "../i18n";
 
 function Field({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
@@ -26,18 +27,19 @@ const modeLabel: Record<string, string> = {
 
 export function DeviceStatus() {
   const { device, refreshing, refresh } = useDevice();
+  const { t } = useI18n();
   const online = device.connected;
 
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
-          Device Status
+          {t("status.title")}
         </span>
         <div className="flex items-center gap-2">
           <button
             onClick={refresh}
-            title="Refresh"
+            title={t("common.refresh")}
             className="text-[var(--color-ink-faint)] hover:text-[var(--color-brand)]"
           >
             <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
@@ -56,13 +58,13 @@ export function DeviceStatus() {
 
       <div className="flex flex-col gap-1.5">
         <Field
-          label="Device"
-          value={online ? [device.brand, device.model].filter(Boolean).join(" ") || device.serial : "No device"}
+          label={t("status.device")}
+          value={online ? [device.brand, device.model].filter(Boolean).join(" ") || device.serial : t("common.noDevice")}
           strong
         />
-        <Field label="ROM" value={device.rom} />
-        <Field label="Android" value={device.android} />
-        <Field label="Serial" value={device.serial} />
+        <Field label={t("status.rom")} value={device.rom} />
+        <Field label={t("status.android")} value={device.android} />
+        <Field label={t("status.serial")} value={device.serial} />
       </div>
     </div>
   );

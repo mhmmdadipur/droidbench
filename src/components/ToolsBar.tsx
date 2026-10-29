@@ -1,6 +1,7 @@
 import { CheckCircle2, AlertTriangle, XCircle, RefreshCw } from "lucide-react";
 import { useTools2 } from "../state/tools";
 import { cn } from "../lib/utils";
+import { useI18n } from "../i18n";
 
 const LABEL: Record<string, string> = {
   adb: "adb",
@@ -29,6 +30,7 @@ function Icon({ source }: { source: string }) {
 
 export function ToolsBar() {
   const { tools, refresh } = useTools2();
+  const { t } = useI18n();
   // only surface the core + any missing optional tools
   const shown = tools.filter(
     (t) => ["adb", "fastboot", "scrcpy"].includes(t.name) || t.source !== "missing",
@@ -41,36 +43,38 @@ export function ToolsBar() {
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-sm">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
-          Tools
+          {t("tools.title")}
         </span>
         <button
           onClick={refresh}
-          title="Re-check tools"
+          title={t("tools.recheck")}
           className="text-[var(--color-ink-faint)] hover:text-[var(--color-brand)]"
         >
           <RefreshCw size={12} />
         </button>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {shown.map((t) => (
+        {shown.map((tool) => (
           <span
-            key={t.name}
-            title={t.source === "missing" ? `${t.name}: not found` : `${t.name} (${t.source})\n${t.path}`}
+            key={tool.name}
+            title={
+              tool.source === "missing"
+                ? t("tools.notFound", { tool: tool.name })
+                : `${tool.name} (${tool.source})\n${tool.path}`
+            }
             className={cn(
               "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium",
-              badgeStyle(t.source),
+              badgeStyle(tool.source),
             )}
           >
-            <Icon source={t.source} />
-            {LABEL[t.name] ?? t.name}
+            <Icon source={tool.source} />
+            {LABEL[tool.name] ?? tool.name}
           </span>
         ))}
       </div>
       {missingCore.length > 0 && (
         <div className="mt-2 rounded-md bg-rose-50 px-2 py-1.5 text-[11px] leading-snug text-rose-600">
-          {missingCore.map((t) => t.name).join(" & ")} tidak ditemukan. Jalankan{" "}
-          <code className="font-mono">scripts/fetch-binaries.sh</code> untuk
-          bundle, atau pasang Android platform-tools.
+          {t("tools.missingCore", { tools: missingCore.map((x) => x.name).join(" & ") })}
         </div>
       )}
     </div>

@@ -1,22 +1,112 @@
+import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { Camera, Video, Square, Contact } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Row, Section, TabHelp } from "../ui/Section";
 import { useTools } from "../../lib/useTools";
 import { useLog } from "../../state/log";
 import { useDevice } from "../../state/device";
+import { useI18n } from "../../i18n";
+import { runCapture } from "../../lib/api";
 
 export function AdbTab() {
   const t = useTools();
-  const { push } = useLog();
+  const { push, run, cancel } = useLog();
   const { device } = useDevice();
+  const { t: tr } = useI18n();
+  const [recording, setRecording] = useState(false);
+  const [recDevPath, setRecDevPath] = useState("");
+  const [recDest, setRecDest] = useState("");
+
+  function guard(): boolean {
+    if (!device.connected || device.mode !== "adb") {
+      push(tr("adb.mirrorNeeds"), "stderr");
+      return false;
+    }
+    return true;
+  }
+
+  async function takeScreenshot() {
+    if (!guard()) return;
+    const dir = await open({ directory: true, multiple: false });
+    if (typeof dir !== "string") {
+      push(tr("adb.noFolder"), "stderr");
+      return;
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const devPath = `/sdcard/droidbench-${stamp}.png`;
+    const dest = `${dir}/droidbench-${stamp}.png`;
+    push(tr("adb.saving", { path: dest }), "system");
+    try {
+      await runCapture("adb", ["shell", "screencap", "-p", devPath]);
+      run("adb", ["pull", devPath, dest]);
+      setTimeout(() => runCapture("adb", ["shell", "rm", devPath]).catch(() => {}), 1500);
+    } catch (e) {
+      push(String(e), "stderr");
+    }
+  }
+
+  async function startRecording() {
+    if (!guard()) return;
+    const dir = await open({ directory: true, multiple: false });
+    if (typeof dir !== "string") {
+      push(tr("adb.noFolder"), "stderr");
+      return;
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const devPath = `/sdcard/droidbench-${stamp}.mp4`;
+    const dest = `${dir}/droidbench-${stamp}.mp4`;
+    setRecDevPath(devPath);
+    setRecDest(dest);
+    setRecording(true);
+    push(tr("adb.recording"), "system");
+    // screenrecord stops on its own after 180s or when we cancel the command
+    run("adb", ["shell", "screenrecord", "--time-limit", "180", devPath]);
+  }
+
+  async function stopRecording() {
+    cancel(); // sends SIGINT-equivalent kill → screenrecord finalizes the mp4
+    setRecording(false);
+    push(tr("adb.saving", { path: recDest }), "system");
+    // give the device a moment to finalize the file, then pull + cleanup
+    setTimeout(() => {
+      run("adb", ["pull", recDevPath, recDest]);
+      setTimeout(() => runCapture("adb", ["shell", "rm", recDevPath]).catch(() => {}), 2000);
+    }, 1200);
+  }
+
+  async function backupContacts() {
+    if (!guard()) return;
+    const dir = await open({ directory: true, multiple: false });
+    if (typeof dir !== "string") {
+      push(tr("adb.noFolder"), "stderr");
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0, 10);
+    const devPath = `/sdcard/droidbench-contacts-${stamp}.txt`;
+    const dest = `${dir}/contacts-${stamp}.txt`;
+    push(tr("adb.saving", { path: dest }), "system");
+    try {
+      // write the query output to a device file, then pull it (adb writes to
+      // the host fs directly — no Tauri fs-scope issues).
+      await runCapture("adb", [
+        "shell",
+        `content query --uri content://contacts/phones --projection display_name:number > ${devPath}`,
+      ]);
+      run("adb", ["pull", devPath, dest]);
+      setTimeout(() => runCapture("adb", ["shell", "rm", devPath]).catch(() => {}), 1500);
+    } catch (e) {
+      push(String(e), "stderr");
+    }
+  }
 
   async function enterSideload() {
     if (!device.connected) {
-      push("No device connected. Connect a device in ADB mode first.", "stderr");
+      push(tr("adb.noDevice"), "stderr");
       return;
     }
-    push("Rebooting device into sideload mode… wait for the recovery screen.", "system");
+    push(tr("adb.sideloadReboot"), "system");
     t.adb(["reboot", "sideload"]);
   }
 
@@ -26,21 +116,17 @@ export function AdbTab() {
       filters: [{ name: "OTA ZIP", extensions: ["zip"] }],
     });
     if (typeof file !== "string") return;
-    push(
-      "Starting ADB sideload. The device must already be in sideload mode " +
-        "(Recovery → Apply update from ADB).",
-      "system",
-    );
+    push(tr("adb.sideloadStart"), "system");
     push(`Sideloading: ${file}`, "system");
     t.adb(["sideload", file]);
   }
 
   function startMirroring() {
     if (!device.connected || device.mode !== "adb") {
-      push("Mirroring needs a device connected in ADB mode.", "stderr");
+      push(tr("adb.mirrorNeeds"), "stderr");
       return;
     }
-    push("Opening mirror window…", "system");
+    push(tr("adb.mirrorOpening"), "system");
     const win = new WebviewWindow("mirror", {
       url: "index.html?view=mirror",
       title: "Droidbench Mirror",
@@ -54,96 +140,75 @@ export function AdbTab() {
       transparent: true,
     });
     win.once("tauri://error", (e) => {
-      push(`Mirror window error: ${JSON.stringify(e.payload)}`, "stderr");
+      push(tr("adb.mirrorError", { err: JSON.stringify(e.payload) }), "stderr");
     });
   }
 
   return (
     <>
-      <TabHelp>
-        <b>ADB</b> dipakai saat HP menyala normal. Dari sini kamu bisa cermin
-        layar HP, reboot ke berbagai mode, dan pasang update (.zip).
-      </TabHelp>
+      <TabHelp>{tr("adb.help")}</TabHelp>
 
-      <Section title="Koneksi ADB">
+      <Section title={tr("adb.conn")}>
         <Row>
-          <Button
-            variant="success"
-            title="Menyalakan layanan ADB di komputer (biasanya otomatis). Pakai ini jika HP tak terdeteksi."
-            onClick={() => t.adb(["start-server"])}
-          >
-            Nyalakan ADB
+          <Button variant="success" title={tr("adb.startHint")} onClick={() => t.adb(["start-server"])}>
+            {tr("adb.start")}
           </Button>
-          <Button
-            variant="danger"
-            title="Mematikan layanan ADB. Berguna untuk reset koneksi saat bermasalah."
-            onClick={() => t.adb(["kill-server"])}
-          >
-            Matikan ADB
+          <Button variant="danger" title={tr("adb.killHint")} onClick={() => t.adb(["kill-server"])}>
+            {tr("adb.kill")}
           </Button>
         </Row>
-        <Button
-          variant="violet"
-          size="block"
-          title="Tampilkan & kendalikan layar HP langsung dari komputer (seperti scrcpy)."
-          onClick={startMirroring}
-        >
-          Cermin Layar (Mirror)
+        <Button variant="violet" size="block" title={tr("adb.mirrorHint")} onClick={startMirroring}>
+          {tr("adb.mirror")}
         </Button>
       </Section>
 
-      <Section title="Reboot / Mulai Ulang">
-        <Button size="block" title="Mulai ulang HP seperti biasa (restart normal)." onClick={() => t.adb(["reboot"])}>
-          Reboot Normal
-        </Button>
-        <Button
-          size="block"
-          title="Mulai ulang ke mode Recovery (untuk pasang update/ROM, wipe, dll)."
-          onClick={() => t.adb(["reboot", "recovery"])}
-        >
-          Reboot ke Recovery
-        </Button>
-        <Button
-          size="block"
-          title="Mulai ulang ke mode Fastboot/Bootloader (untuk flashing via fastboot)."
-          onClick={() => t.adb(["reboot", "bootloader"])}
-        >
-          Reboot ke Fastboot
-        </Button>
-      </Section>
-
-      <Section title="Pasang Update (Sideload)">
-        <Button
-          size="block"
-          title="Reboot HP ke mode sideload (Recovery → Apply update from ADB) untuk memasang file update."
-          onClick={enterSideload}
-        >
-          Masuk Mode Sideload
-        </Button>
-        <Button
-          size="block"
-          variant="primary"
-          title="Pilih file update (.zip) dari komputer dan pasang ke HP. HP harus sudah di mode sideload."
-          onClick={sideloadFile}
-        >
-          Pasang File Update (.zip)
+      <Section title={tr("adb.capture")}>
+        <Row>
+          <Button title={tr("adb.screenshotHint")} onClick={takeScreenshot}>
+            <Camera size={14} /> {tr("adb.screenshot")}
+          </Button>
+          {recording ? (
+            <Button variant="danger" title={tr("adb.recordStopHint")} onClick={stopRecording}>
+              <Square size={13} /> {tr("adb.recordStop")}
+            </Button>
+          ) : (
+            <Button title={tr("adb.recordHint")} onClick={startRecording}>
+              <Video size={14} /> {tr("adb.record")}
+            </Button>
+          )}
+        </Row>
+        <Button size="block" title={tr("adb.backupContactsHint")} onClick={backupContacts}>
+          <Contact size={14} /> {tr("adb.backupContacts")}
         </Button>
       </Section>
 
-      <Section title="Info Perangkat">
-        <Button
-          size="block"
-          title="Tampilkan daftar HP yang terhubung beserta statusnya."
-          onClick={() => t.adb(["devices", "-l"])}
-        >
-          Daftar HP Terhubung
+      <Section title={tr("adb.reboot")}>
+        <Button size="block" title={tr("adb.rebootNormalHint")} onClick={() => t.adb(["reboot"])}>
+          {tr("adb.rebootNormal")}
         </Button>
-        <Button
-          size="block"
-          title="Tampilkan semua info teknis HP (properti sistem) — untuk pengguna lanjutan."
-          onClick={() => t.adb(["shell", "getprop"])}
-        >
-          Info Teknis HP
+        <Button size="block" title={tr("adb.rebootRecoveryHint")} onClick={() => t.adb(["reboot", "recovery"])}>
+          {tr("adb.rebootRecovery")}
+        </Button>
+        <Button size="block" title={tr("adb.rebootFastbootHint")} onClick={() => t.adb(["reboot", "bootloader"])}>
+          {tr("adb.rebootFastboot")}
+        </Button>
+      </Section>
+
+      <Section title={tr("adb.sideloadSec")}>
+        <Button size="block" title={tr("adb.enterSideloadHint")} onClick={enterSideload}>
+          {tr("adb.enterSideload")}
+        </Button>
+        <Button size="block" variant="primary" title={tr("adb.sideloadFileHint")} onClick={sideloadFile}>
+          {tr("adb.sideloadFile")}
+        </Button>
+      </Section>
+
+      <Section title={tr("adb.info")}>
+        <Button size="block" title={tr("adb.listDevicesHint")} onClick={() => t.adb(["devices", "-l"])}>
+          {tr("adb.listDevices")}
+        </Button>
+        <Button size="block" title={tr("adb.getpropHint")} onClick={() => t.adb(["shell", "getprop"])}>
+          {tr("adb.getprop")}
         </Button>
       </Section>
     </>

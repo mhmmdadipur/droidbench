@@ -3,10 +3,12 @@ import { Button } from "../ui/Button";
 import { Section, TabHelp } from "../ui/Section";
 import { useTools } from "../../lib/useTools";
 import { useLog } from "../../state/log";
+import { useI18n } from "../../i18n";
 
 export function DumperTab() {
   const t = useTools();
   const { push } = useLog();
+  const { t: tr } = useI18n();
 
   async function dumpPayload() {
     const zip = await open({
@@ -14,12 +16,11 @@ export function DumperTab() {
       filters: [{ name: "OTA ZIP / payload", extensions: ["zip", "bin"] }],
     });
     if (typeof zip !== "string") return;
-    const out = await open({ directory: true, multiple: false, title: "Output folder" });
+    const out = await open({ directory: true, multiple: false, title: tr("du.outTitle") });
     if (typeof out !== "string") {
-      push("Select an output folder.", "stderr");
+      push(tr("du.selectOut"), "stderr");
       return;
     }
-    // payload-dumper-go style: payload-dumper -o <out> <payload-or-zip>
     t.payloadDumper(["-o", out, zip]);
   }
 
@@ -29,43 +30,28 @@ export function DumperTab() {
       filters: [{ name: "ZIP", extensions: ["zip"] }],
     });
     if (typeof zip !== "string") return;
-    const out = await open({ directory: true, multiple: false, title: "Output folder" });
+    const out = await open({ directory: true, multiple: false, title: tr("du.outTitle") });
     if (typeof out !== "string") {
-      push("Select an output folder.", "stderr");
+      push(tr("du.selectOut"), "stderr");
       return;
     }
-    // use system unzip (available on mac/linux; on windows we ship a fallback)
     t.raw("unzip", ["-o", zip, "-d", out], true);
   }
 
   return (
     <>
-      <TabHelp>
-        Mengambil file sistem (boot, vendor, system, dll) dari dalam file update
-        <b> OTA</b> (payload.bin di dalam ZIP). Hasilnya bisa kamu flash satu per
-        satu di tab Fastboot. Semua diproses di komputer, HP tidak perlu dicolok.
-      </TabHelp>
+      <TabHelp>{tr("du.help")}</TabHelp>
 
-      <Section title="Ekstrak Payload">
-        <Button
-          size="block"
-          variant="success"
-          title="Pilih file OTA (.zip) atau payload.bin, lalu ekstrak semua image sistem ke folder pilihanmu."
-          onClick={dumpPayload}
-        >
-          Ekstrak payload.bin / OTA ZIP
+      <Section title={tr("du.payloadSec")}>
+        <Button size="block" variant="success" title={tr("du.dumpPayloadHint")} onClick={dumpPayload}>
+          {tr("du.dumpPayload")}
         </Button>
-        <Button
-          size="block"
-          title="Hanya membuka isi file ZIP biasa ke sebuah folder (tanpa memproses payload)."
-          onClick={extractZip}
-        >
-          Ekstrak isi ZIP saja
+        <Button size="block" title={tr("du.extractZipHint")} onClick={extractZip}>
+          {tr("du.extractZip")}
         </Button>
       </Section>
       <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-[var(--color-ink-soft)]">
-        Contoh hasil: boot.img, vendor.img, system.img — lalu pasang masing-masing
-        di tab <b>Fastboot</b>.
+        {tr("du.note")}
       </div>
     </>
   );

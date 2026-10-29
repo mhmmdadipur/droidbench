@@ -4,11 +4,14 @@ import {
   Zap,
   Boxes,
   PackageOpen,
-  Trash2,
   FolderOpen,
   RefreshCw,
   HelpCircle,
   Download,
+  Stethoscope,
+  Wifi,
+  LayoutGrid,
+  ScrollText,
 } from "lucide-react";
 import { TitleBar } from "./components/TitleBar";
 import { DeviceStatus } from "./components/DeviceStatus";
@@ -21,27 +24,54 @@ import { FastbootTab } from "./components/tabs/FastbootTab";
 import { XiaomiTab } from "./components/tabs/XiaomiTab";
 import { SamsungTab } from "./components/tabs/SamsungTab";
 import { DumperTab } from "./components/tabs/DumperTab";
-import { DebloatTab } from "./components/tabs/DebloatTab";
+import { DiagnosticTab } from "./components/tabs/DiagnosticTab";
+import { ConnectivityTab } from "./components/tabs/ConnectivityTab";
+import { AppManagerTab } from "./components/tabs/AppManagerTab";
+import { LogcatTab } from "./components/tabs/LogcatTab";
 import { DeviceProvider } from "./state/device";
 import { LogProvider, useLog } from "./state/log";
 import { ToolsProvider } from "./state/tools";
 import { MirrorProvider } from "./state/mirror";
+import { DiagnosticProvider } from "./state/diagnostic";
+import { ConnectivityProvider } from "./state/connectivity";
+import { AppManagerProvider } from "./state/appmanager";
+import { I18nProvider, useI18n, type TKey } from "./i18n";
 
-type TabId = "adb" | "fastboot" | "xiaomi" | "samsung" | "dumper" | "debloat";
+type TabId =
+  | "adb"
+  | "diagnostic"
+  | "appmanager"
+  | "logcat"
+  | "connectivity"
+  | "fastboot"
+  | "xiaomi"
+  | "samsung"
+  | "dumper";
 
-const TABS: { id: TabId; label: string; icon: typeof Smartphone; desc: string }[] = [
-  { id: "adb", label: "ADB", icon: Smartphone, desc: "Cermin layar, reboot, update" },
-  { id: "fastboot", label: "Fastboot", icon: Zap, desc: "Flash & buka bootloader" },
-  { id: "xiaomi", label: "Xiaomi", icon: Boxes, desc: "Flash firmware MIUI/HyperOS" },
-  { id: "samsung", label: "Samsung", icon: PackageOpen, desc: "Flash via Odin/Heimdall" },
-  { id: "dumper", label: "Dumper", icon: Download, desc: "Ekstrak isi OTA/payload" },
-  { id: "debloat", label: "Debloat", icon: Trash2, desc: "Nonaktifkan bloatware" },
+const TABS: { id: TabId; labelKey: TKey; icon: typeof Smartphone; descKey: TKey }[] = [
+  { id: "adb", labelKey: "tab.adb", icon: Smartphone, descKey: "tab.adb.desc" },
+  { id: "diagnostic", labelKey: "tab.diagnostic", icon: Stethoscope, descKey: "tab.diagnostic.desc" },
+  { id: "appmanager", labelKey: "tab.appmanager", icon: LayoutGrid, descKey: "tab.appmanager.desc" },
+  { id: "logcat", labelKey: "tab.logcat", icon: ScrollText, descKey: "tab.logcat.desc" },
+  { id: "connectivity", labelKey: "tab.connectivity", icon: Wifi, descKey: "tab.connectivity.desc" },
+  { id: "fastboot", labelKey: "tab.fastboot", icon: Zap, descKey: "tab.fastboot.desc" },
+  { id: "xiaomi", labelKey: "tab.xiaomi", icon: Boxes, descKey: "tab.xiaomi.desc" },
+  { id: "samsung", labelKey: "tab.samsung", icon: PackageOpen, descKey: "tab.samsung.desc" },
+  { id: "dumper", labelKey: "tab.dumper", icon: Download, descKey: "tab.dumper.desc" },
 ];
 
 function TabContent({ tab }: { tab: TabId }) {
   switch (tab) {
     case "adb":
       return <AdbTab />;
+    case "diagnostic":
+      return <DiagnosticTab />;
+    case "appmanager":
+      return <AppManagerTab />;
+    case "logcat":
+      return <LogcatTab />;
+    case "connectivity":
+      return <ConnectivityTab />;
     case "fastboot":
       return <FastbootTab />;
     case "xiaomi":
@@ -50,13 +80,12 @@ function TabContent({ tab }: { tab: TabId }) {
       return <SamsungTab />;
     case "dumper":
       return <DumperTab />;
-    case "debloat":
-      return <DebloatTab />;
   }
 }
 
 function BottomToolbar() {
   const { push, run } = useLog();
+  const { t } = useI18n();
 
   async function openFiles() {
     push("Menampilkan isi penyimpanan HP (/sdcard)…", "system");
@@ -98,16 +127,17 @@ function BottomToolbar() {
 
   return (
     <div className="flex gap-1.5">
-      {item("Buka File HP", "Lihat isi penyimpanan HP (folder /sdcard) dari komputer.", FolderOpen, openFiles)}
-      {item("Cek Perangkat", "Tampilkan HP yang terhubung & statusnya (apakah terdeteksi).", Smartphone, listDevices)}
-      {item("Restart Koneksi", "Mulai ulang koneksi ADB jika HP tidak terdeteksi / error.", RefreshCw, restartConnection)}
-      {item("Bantuan Koneksi", "Panduan cara menyambungkan HP (USB debugging, dll).", HelpCircle, connectionHelp)}
+      {item(t("bottom.files"), t("bottom.filesHint"), FolderOpen, openFiles)}
+      {item(t("bottom.check"), t("bottom.checkHint"), Smartphone, listDevices)}
+      {item(t("bottom.restart"), t("bottom.restartHint"), RefreshCw, restartConnection)}
+      {item(t("bottom.help"), t("bottom.helpHint"), HelpCircle, connectionHelp)}
     </div>
   );
 }
 
 function Shell() {
   const [tab, setTab] = useState<TabId>("adb");
+  const { t } = useI18n();
   const activeTab = TABS.find((t) => t.id === tab);
 
   return (
@@ -121,11 +151,11 @@ function Shell() {
           <ToolsBar />
 
           {/* vertical tab bar with label + description */}
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-sm">
+          <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-sm">
             <div className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
-              Tools
+              {t("nav.tools")}
             </div>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto">
               {TABS.map((tb) => {
                 const Icon = tb.icon;
                 const active = tab === tb.id;
@@ -133,7 +163,7 @@ function Shell() {
                   <button
                     key={tb.id}
                     onClick={() => setTab(tb.id)}
-                    title={tb.desc}
+                    title={t(tb.descKey)}
                     className={`no-drag flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${
                       active
                         ? "bg-[var(--color-brand-50)]"
@@ -155,10 +185,10 @@ function Shell() {
                           active ? "text-[var(--color-brand-600)]" : "text-[var(--color-ink)]"
                         }`}
                       >
-                        {tb.label}
+                        {t(tb.labelKey)}
                       </span>
                       <span className="block truncate text-[10.5px] leading-tight text-[var(--color-ink-faint)]">
-                        {tb.desc}
+                        {t(tb.descKey)}
                       </span>
                     </span>
                   </button>
@@ -177,7 +207,7 @@ function Shell() {
           <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
             {activeTab && <activeTab.icon size={16} className="text-[var(--color-brand-600)]" />}
             <span className="text-[13px] font-semibold text-[var(--color-ink)]">
-              {activeTab?.label}
+              {activeTab && t(activeTab.labelKey)}
             </span>
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-4">
@@ -246,20 +276,30 @@ export default function App() {
   const isMirror = new URLSearchParams(window.location.search).get("view") === "mirror";
   if (isMirror) {
     return (
-      <DeviceProvider>
-        <MirrorPage />
-      </DeviceProvider>
+      <I18nProvider>
+        <DeviceProvider>
+          <MirrorPage />
+        </DeviceProvider>
+      </I18nProvider>
     );
   }
   return (
-    <DeviceProvider>
-      <ToolsProvider>
-        <MirrorProvider>
-          <LogProvider>
-            <Shell />
-          </LogProvider>
-        </MirrorProvider>
-      </ToolsProvider>
-    </DeviceProvider>
+    <I18nProvider>
+      <DeviceProvider>
+        <ToolsProvider>
+          <MirrorProvider>
+            <LogProvider>
+              <DiagnosticProvider>
+                <ConnectivityProvider>
+                  <AppManagerProvider>
+                    <Shell />
+                  </AppManagerProvider>
+                </ConnectivityProvider>
+              </DiagnosticProvider>
+            </LogProvider>
+          </MirrorProvider>
+        </ToolsProvider>
+      </DeviceProvider>
+    </I18nProvider>
   );
 }

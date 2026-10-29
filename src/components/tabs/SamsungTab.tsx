@@ -5,20 +5,22 @@ import { Button } from "../ui/Button";
 import { Row, Section, TabHelp } from "../ui/Section";
 import { useTools } from "../../lib/useTools";
 import { useLog } from "../../state/log";
+import { useI18n, type TKey } from "../../i18n";
 
 // Heimdall partition names commonly mapped to Odin slots.
-const SLOTS = [
-  { key: "BL", partition: "BOOTLOADER", desc: "Bootloader (file BL_...tar.md5 dari firmware Samsung)" },
-  { key: "AP", partition: "AP", desc: "Sistem utama / Android (file AP_...tar.md5 — paling besar)" },
-  { key: "CP", partition: "MODEM", desc: "Modem / sinyal (file CP_...tar.md5)" },
-  { key: "CSC", partition: "CSC", desc: "CSC — region & operator, MENGHAPUS data (file CSC_...tar.md5)" },
-  { key: "HOME", partition: "HOME_CSC", desc: "HOME_CSC — seperti CSC tapi TANPA menghapus data" },
-  { key: "PIT", partition: "PIT", desc: "Peta partisi (.pit) — hanya untuk re-partition, jarang dipakai" },
+const SLOTS: { key: string; partition: string; descKey: TKey }[] = [
+  { key: "BL", partition: "BOOTLOADER", descKey: "sa.slot.BL" },
+  { key: "AP", partition: "AP", descKey: "sa.slot.AP" },
+  { key: "CP", partition: "MODEM", descKey: "sa.slot.CP" },
+  { key: "CSC", partition: "CSC", descKey: "sa.slot.CSC" },
+  { key: "HOME", partition: "HOME_CSC", descKey: "sa.slot.HOME" },
+  { key: "PIT", partition: "PIT", descKey: "sa.slot.PIT" },
 ];
 
 export function SamsungTab() {
   const t = useTools();
   const { push } = useLog();
+  const { t: tr } = useI18n();
   const [files, setFiles] = useState<Record<string, string>>({});
   const [noReboot, setNoReboot] = useState(false);
   const [repartition, setRepartition] = useState(false);
@@ -47,7 +49,7 @@ export function SamsungTab() {
       else args.push(`--${s.partition}`, f);
     }
     if (args.length === 1) {
-      push("Assign at least one slot file before flashing.", "stderr");
+      push(tr("sa.assignFirst"), "stderr");
       return;
     }
     if (repartition) args.push("--repartition");
@@ -57,72 +59,66 @@ export function SamsungTab() {
 
   return (
     <>
-      <TabHelp>
-        Khusus HP <b>Samsung</b>, pengganti Odin. HP harus di mode
-        <b> Download</b> (matikan HP → tahan Volume Bawah + Power / colok USB).
-        Isi slot dengan file firmware (BL/AP/CP/CSC) lalu Flash.
-      </TabHelp>
+      <TabHelp>{tr("sa.help")}</TabHelp>
 
-      <Section title="Deteksi & Mode Download">
+      <Section title={tr("sa.detectSec")}>
         <Row cols={3}>
-          <Button title="Cek apakah HP Samsung di mode Download sudah terdeteksi." onClick={() => t.heimdall(["detect"])}>
-            Deteksi HP
+          <Button title={tr("sa.detectHint")} onClick={() => t.heimdall(["detect"])}>
+            {tr("sa.detect")}
           </Button>
-          <Button title="Tampilkan peta partisi (PIT) HP — info teknis." onClick={() => t.heimdall(["print-pit"])}>
-            Lihat PIT
+          <Button title={tr("sa.pitHint")} onClick={() => t.heimdall(["print-pit"])}>
+            {tr("sa.pit")}
           </Button>
-          <Button title="Keluar dari mode Download & nyalakan ulang HP." onClick={() => t.heimdall(["close-pc-screen"])}>
-            Reboot
+          <Button title={tr("sa.rebootHint")} onClick={() => t.heimdall(["close-pc-screen"])}>
+            {tr("sa.reboot")}
           </Button>
         </Row>
       </Section>
 
-      <Section title="Slot Firmware (file .tar / .md5)">
-        {SLOTS.map((s) => (
-          <div key={s.key} className="flex items-center gap-2" title={s.desc}>
-            <span className="w-11 text-xs font-semibold text-[var(--color-brand-600)]">
-              {s.key}
-            </span>
-            <span
-              className="flex-1 truncate rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-[var(--color-ink-soft)]"
-              title={files[s.key] ?? s.desc}
-            >
-              {files[s.key] ? files[s.key].split("/").pop() : "— belum ada file —"}
-            </span>
-            <Button size="sm" title={`Pilih file untuk ${s.key}: ${s.desc}`} onClick={() => pick(s.key)}>
-              …
-            </Button>
-            <Button size="sm" variant="info" title={`Kosongkan slot ${s.key}`} onClick={() => clearSlot(s.key)}>
-              <X size={13} />
-            </Button>
-          </div>
-        ))}
+      <Section title={tr("sa.slotsSec")}>
+        {SLOTS.map((s) => {
+          const desc = tr(s.descKey);
+          return (
+            <div key={s.key} className="flex items-center gap-2" title={desc}>
+              <span className="w-11 text-xs font-semibold text-[var(--color-brand-600)]">
+                {s.key}
+              </span>
+              <span
+                className="flex-1 truncate rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-[var(--color-ink-soft)]"
+                title={files[s.key] ?? desc}
+              >
+                {files[s.key] ? files[s.key].split("/").pop() : tr("sa.noFile")}
+              </span>
+              <Button size="sm" title={tr("sa.pickFor", { slot: s.key, desc })} onClick={() => pick(s.key)}>
+                …
+              </Button>
+              <Button size="sm" variant="info" title={tr("sa.clearSlot", { slot: s.key })} onClick={() => clearSlot(s.key)}>
+                <X size={13} />
+              </Button>
+            </div>
+          );
+        })}
       </Section>
 
-      <Section title="Opsi & Flash">
+      <Section title={tr("sa.optSec")}>
         <Button
           size="block"
           variant={noReboot ? "primary" : "default"}
-          title="Jika ON, HP TIDAK restart otomatis setelah flash (berguna untuk flash bertahap)."
+          title={tr("sa.noRebootHint")}
           onClick={() => setNoReboot((v) => !v)}
         >
-          Tanpa reboot otomatis: {noReboot ? "ON" : "OFF"}
+          {tr("sa.noReboot", { state: noReboot ? tr("common.on") : tr("common.off") })}
         </Button>
         <Button
           size="block"
           variant={repartition ? "primary" : "default"}
-          title="Jika ON, HP akan di-repartition memakai file PIT. HANYA jika kamu paham — salah pakai bisa brick."
+          title={tr("sa.repartitionHint")}
           onClick={() => setRepartition((v) => !v)}
         >
-          Repartition (pakai PIT): {repartition ? "ON" : "OFF"}
+          {tr("sa.repartition", { state: repartition ? tr("common.on") : tr("common.off") })}
         </Button>
-        <Button
-          size="block"
-          variant="info"
-          title="Mulai flash semua slot yang sudah diisi ke HP Samsung via Heimdall."
-          onClick={flash}
-        >
-          Mulai Flash (Heimdall)
+        <Button size="block" variant="info" title={tr("sa.flashHint")} onClick={flash}>
+          {tr("sa.flash")}
         </Button>
       </Section>
     </>

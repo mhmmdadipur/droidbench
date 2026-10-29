@@ -2,9 +2,11 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { Button } from "../ui/Button";
 import { Row, Section, TabHelp } from "../ui/Section";
 import { useTools } from "../../lib/useTools";
+import { useI18n } from "../../i18n";
 
 export function FastbootTab() {
   const t = useTools();
+  const { t: tr } = useI18n();
 
   async function flash(partition: string) {
     const file = await open({
@@ -28,120 +30,92 @@ export function FastbootTab() {
 
   return (
     <>
-      <TabHelp>
-        <b>Fastboot</b> dipakai saat HP di mode Fastboot/Bootloader (layar hitam
-        dengan tulisan). Di sini kamu memasang (flash) file sistem seperti boot,
-        recovery, dan membuka bootloader. <b>Hati-hati:</b> salah flash bisa
-        membuat HP mati total (brick).
-      </TabHelp>
+      <TabHelp>{tr("fb.help")}</TabHelp>
 
-      <Section title="Reboot & Info">
+      <Section title={tr("fb.rebootInfo")}>
         <Row>
-          <Button title="Keluar dari Fastboot dan nyalakan HP normal." onClick={() => t.fastboot(["reboot"])}>
-            Reboot Normal
+          <Button title={tr("fb.rebootNormalHint")} onClick={() => t.fastboot(["reboot"])}>
+            {tr("fb.rebootNormal")}
           </Button>
-          <Button title="Mulai ulang ke mode Recovery." onClick={() => t.fastboot(["reboot", "recovery"])}>
-            Ke Recovery
+          <Button title={tr("fb.toRecoveryHint")} onClick={() => t.fastboot(["reboot", "recovery"])}>
+            {tr("fb.toRecovery")}
           </Button>
         </Row>
         <Row>
-          <Button
-            title="Cek status bootloader: terkunci (locked) atau terbuka (unlocked)."
-            onClick={() => t.fastboot(["getvar", "unlocked"])}
-          >
-            Cek Bootloader
+          <Button title={tr("fb.checkBlHint")} onClick={() => t.fastboot(["getvar", "unlocked"])}>
+            {tr("fb.checkBl")}
           </Button>
-          <Button title="Tampilkan nama/kode model HP (codename)." onClick={() => t.fastboot(["getvar", "product"])}>
-            Nama Model
+          <Button title={tr("fb.modelHint")} onClick={() => t.fastboot(["getvar", "product"])}>
+            {tr("fb.model")}
           </Button>
         </Row>
-        <Button
-          size="block"
-          title="Tampilkan SEMUA info teknis HP di mode fastboot (untuk pengguna lanjutan)."
-          onClick={() => t.fastboot(["getvar", "all"])}
-        >
-          Semua Info (Getvar All)
+        <Button size="block" title={tr("fb.getvarAllHint")} onClick={() => t.fastboot(["getvar", "all"])}>
+          {tr("fb.getvarAll")}
         </Button>
       </Section>
 
-      <Section title="Pasang File Sistem (Flash)">
+      <Section title={tr("fb.flashSec")}>
         <Row>
-          <Button title="Pasang file recovery.img (mis. TWRP/OrangeFox) ke partisi recovery." onClick={() => flash("recovery")}>
-            Flash Recovery
+          <Button title={tr("fb.flashRecoveryHint")} onClick={() => flash("recovery")}>
+            {tr("fb.flashRecovery")}
           </Button>
-          <Button title="Pasang file boot.img (kernel) ke partisi boot." onClick={() => flash("boot")}>
-            Flash Boot
+          <Button title={tr("fb.flashBootHint")} onClick={() => flash("boot")}>
+            {tr("fb.flashBoot")}
           </Button>
         </Row>
         <Row>
-          <Button title="Pasang init_boot.img (dipakai HP Android 13+ untuk root Magisk)." onClick={() => flash("init_boot")}>
-            Flash Init Boot
+          <Button title={tr("fb.flashInitBootHint")} onClick={() => flash("init_boot")}>
+            {tr("fb.flashInitBoot")}
           </Button>
-          <Button title="Pasang vendor_boot.img (bagian dari boot pada sebagian HP)." onClick={() => flash("vendor_boot")}>
-            Flash Vendor Boot
+          <Button title={tr("fb.flashVendorBootHint")} onClick={() => flash("vendor_boot")}>
+            {tr("fb.flashVendorBoot")}
           </Button>
         </Row>
-        <Button
-          size="block"
-          variant="info"
-          title="Coba jalankan boot.img SEMENTARA tanpa memasang permanen (mis. untuk tes TWRP/root). Hilang setelah restart."
-          onClick={bootTemp}
-        >
-          Boot Sementara (Temp)
+        <Button size="block" variant="info" title={tr("fb.bootTempHint")} onClick={bootTemp}>
+          {tr("fb.bootTemp")}
         </Button>
       </Section>
 
-      <Section title="Slot A/B (HP dengan 2 slot)">
+      <Section title={tr("fb.slotSec")}>
         <Row>
-          <Button title="Lihat slot aktif saat ini (a atau b) pada HP A/B." onClick={() => t.fastboot(["getvar", "current-slot"])}>
-            Slot Aktif
+          <Button title={tr("fb.activeSlotHint")} onClick={() => t.fastboot(["getvar", "current-slot"])}>
+            {tr("fb.activeSlot")}
           </Button>
-          <Button title="Pindah ke slot satunya (a ↔ b). Berguna jika satu slot rusak." onClick={() => t.fastboot(["--set-active=other"])}>
-            Ganti Slot
+          <Button title={tr("fb.switchSlotHint")} onClick={() => t.fastboot(["--set-active=other"])}>
+            {tr("fb.switchSlot")}
           </Button>
         </Row>
       </Section>
 
-      <Section title="Keamanan Verity / VBMeta">
+      <Section title={tr("fb.veritySec")}>
         <Row>
-          <Button
-            title="Matikan dm-verity (pengecekan integritas sistem). Diperlukan setelah modifikasi sistem."
-            onClick={() => t.fastboot(["oem", "disable-verity"])}
-          >
-            Matikan Verity
+          <Button title={tr("fb.disableVerityHint")} onClick={() => t.fastboot(["oem", "disable-verity"])}>
+            {tr("fb.disableVerity")}
           </Button>
-          <Button title="Pasang file vbmeta.img." onClick={() => flash("vbmeta")}>
-            Flash vbmeta
+          <Button title={tr("fb.flashVbmetaHint")} onClick={() => flash("vbmeta")}>
+            {tr("fb.flashVbmeta")}
           </Button>
         </Row>
         <Button
           size="block"
-          title="Pasang vbmeta.img sekaligus mematikan verity & verification (sering dibutuhkan agar HP mau boot setelah dimodifikasi)."
+          title={tr("fb.disableVbmetaHint")}
           onClick={() => t.fastboot(["--disable-verity", "--disable-verification", "flash", "vbmeta"])}
         >
-          Matikan VBMeta (pilih vbmeta.img)
+          {tr("fb.disableVbmeta")}
         </Button>
       </Section>
 
-      <Section title="Buka / Kunci Bootloader">
+      <Section title={tr("fb.lockSec")}>
         <Row>
-          <Button
-            variant="danger"
-            title="BUKA bootloader. WAJIB untuk pasang custom ROM/root, TAPI akan MENGHAPUS SEMUA DATA HP."
-            onClick={() => t.fastboot(["flashing", "unlock"])}
-          >
-            Buka (Unlock)
+          <Button variant="danger" title={tr("fb.unlockHint")} onClick={() => t.fastboot(["flashing", "unlock"])}>
+            {tr("fb.unlock")}
           </Button>
-          <Button title="Kunci kembali bootloader. Juga menghapus data. Lakukan hanya jika sistem sudah resmi/stabil." onClick={() => t.fastboot(["flashing", "lock"])}>
-            Kunci (Lock)
+          <Button title={tr("fb.lockHint")} onClick={() => t.fastboot(["flashing", "lock"])}>
+            {tr("fb.lock")}
           </Button>
         </Row>
-        <Button
-          size="block"
-          title="Perintah unlock alternatif (oem unlock) untuk HP lama yang tidak mendukung 'flashing unlock'."
-          onClick={() => t.fastboot(["oem", "unlock"])}
-        >
-          OEM Unlock (HP lama)
+        <Button size="block" title={tr("fb.oemUnlockHint")} onClick={() => t.fastboot(["oem", "unlock"])}>
+          {tr("fb.oemUnlock")}
         </Button>
       </Section>
     </>
