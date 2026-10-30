@@ -5,20 +5,14 @@ import { Button } from "../ui/Button";
 import { Row, Section, TabHelp } from "../ui/Section";
 import {
   listInstalledPackages,
-  listDisabledPackages,
   loadDebloatDb,
   runCapture,
-  type DebloatDatabase,
 } from "../../lib/api";
 import { useLog } from "../../state/log";
 import { useDevice } from "../../state/device";
 import { useAppManager, type DbId, type RiskFilter } from "../../state/appmanager";
 import { useI18n, type TKey } from "../../i18n";
-import {
-  deriveAppName,
-  buildDebloatIndex,
-  type RiskLevel,
-} from "../../lib/apps";
+import { deriveAppName, type RiskLevel } from "../../lib/apps";
 
 const MARKET_HANDLER =
   "com.android.vending/com.google.android.finsky.activities.MarketDeepLinkHandlerActivity";
@@ -42,9 +36,9 @@ export function AppManagerTab() {
   const am = useAppManager();
   const {
     all, disabled, launchable, query, kind, selected, marketStatus,
-    setAll, setDisabled, setLaunchable, setQuery, setKind, setSelected, setMarketStatus,
+    setAll, setQuery, setKind, setSelected, setMarketStatus,
     dbId, db, riskFilter, checked, dryRun, debloatIndex,
-    setDbId, setDb, setRiskFilter, setChecked, setDryRun, setDebloatIndex,
+    setDbId, setDb, setRiskFilter, setChecked, setDryRun,
   } = am;
   const [loading, setLoading] = useState(false);
   const [reinstall, setReinstall] = useState(true);
@@ -59,35 +53,15 @@ export function AppManagerTab() {
     return true;
   }
 
-  // ── scan: installed apps + build debloat risk index from all DBs ──────────
+  // ── scan: delegates to the shared provider scan (also auto-detects DB) ────
   async function scan() {
     if (!guard()) return;
     setLoading(true);
     push("Scanning apps + debloat status…", "system");
     try {
-      const [inst, dis, launcherDump, xi, uni, tv] = await Promise.all([
-        listInstalledPackages(),
-        listDisabledPackages(),
-        runCapture("adb", [
-          "shell", "cmd", "package", "query-activities", "--brief",
-          "-a", "android.intent.action.MAIN",
-          "-c", "android.intent.category.LAUNCHER",
-        ]),
-        loadDebloatDb("xiaomi").catch(() => null),
-        loadDebloatDb("universal").catch(() => null),
-        loadDebloatDb("tv").catch(() => null),
-      ]);
-      setAll(inst.sort((a, b) => a.localeCompare(b)));
-      setDisabled(new Set(dis));
-      const launch = parseLaunchable(launcherDump);
-      setLaunchable(launch);
-      const dbs = [xi, uni, tv].filter(Boolean) as DebloatDatabase[];
-      const idx = buildDebloatIndex(dbs);
-      setDebloatIndex(idx);
-      const flagged = inst.filter((p) => idx.has(p)).length;
+      const inst = await am.scanApps();
       push(
-        `${inst.length} apps: ${launch.size} user, ${inst.length - launch.size} background, ` +
-          `${dis.length} disabled, ${flagged} in debloat list.`,
+        `${inst.length} apps scanned. Debloat DB auto-selected: ${am.dbId}.`,
         "system",
       );
       await readMarketStatus();
@@ -159,6 +133,35 @@ export function AppManagerTab() {
       const lines = out.trim().split("\n").filter(Boolean);
       if (lines.length === 0) push("(no appops entries / all default)", "stdout");
       else lines.forEach((l) => push(l.trim(), "stdout"));
+    } catch (e) {
+      push(String(e), "stderr");
+    }
+  }
+
+  async function restartApp(pkg: string) {
+    if (!guard()) return;
+    push(`Restarting ${pkg}…`, "system");
+    try {
+      await runCapture("adb", ["shell", "am", "force-stop", pkg]);
+      await runCapture("adb", ["shell", "monkey", "-p", pkg, "-c", "android.intent.category.LAUNCHER", "1"]);
+      push("✓ restarted.", "system");
+    } catch (e) {
+      push(String(e), "stderr");
+    }
+  }
+
+  async function listActivities(pkg: string) {
+    if (!guard()) return;
+    push(`── Activities: ${pkg} ──`, "system");
+    try {
+      const out = await runCapture("adb", ["shell", "dumpsys", "package", pkg]);
+      const acts = Array.from(
+        new Set(
+          (out.match(new RegExp(`${pkg.replace(/\./g, "\\.")}/[A-Za-z0-9_.$]+`, "g")) || []),
+        ),
+      ).slice(0, 40);
+      if (acts.length === 0) push("(no activities found)", "stdout");
+      else acts.forEach((a) => push(a, "stdout"));
     } catch (e) {
       push(String(e), "stderr");
     }
@@ -601,6 +604,14 @@ export function AppManagerTab() {
             </Button>
           </Row>
           <Row>
+            <Button title={t("app.restartHint")} onClick={() => restartApp(sel)}>
+              {t("app.restart")}
+            </Button>
+            <Button title={t("app.activitiesHint")} onClick={() => listActivities(sel)}>
+              {t("app.activities")}
+            </Button>
+          </Row>
+          <Row>
             <Button title={t("app.extractHint")} onClick={() => extractApk(sel)}>
               {t("app.extract")}
             </Button>
@@ -734,14 +745,4 @@ function StatusDot({ status }: { status: "on" | "off" | "absent" }) {
       {t}
     </span>
   );
-}
-
-function parseLaunchable(dump: string): Set<string> {
-  const set = new Set<string>();
-  for (const raw of dump.split("\n")) {
-    const line = raw.trim();
-    const m = /([a-zA-Z0-9_.]+)\/[a-zA-Z0-9_.$]+/.exec(line);
-    if (m && m[1].includes(".")) set.add(m[1]);
-  }
-  return set;
 }

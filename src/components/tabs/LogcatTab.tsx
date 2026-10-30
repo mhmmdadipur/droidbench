@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Play, Square, Eraser, Save, Bug } from "lucide-react";
+import { Play, Square, Eraser, Save, Bug, RefreshCw } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { runCapture } from "../../lib/api";
 import { Button } from "../ui/Button";
 import { Row, Section, TabHelp } from "../ui/Section";
+import { AppCombobox } from "../ui/AppCombobox";
 import { useLog } from "../../state/log";
 import { useDevice } from "../../state/device";
+import { useAppManager } from "../../state/appmanager";
 import { useI18n, type TKey } from "../../i18n";
 
 type Level = "V" | "D" | "I" | "W" | "E";
@@ -21,9 +24,11 @@ export function LogcatTab() {
   const { push, run, cancel, running } = useLog();
   const { device } = useDevice();
   const { t } = useI18n();
+  const { scanApps, scanning } = useAppManager();
   const [level, setLevel] = useState<Level>("E");
   const [tag, setTag] = useState("");
   const [crashOnly, setCrashOnly] = useState(false);
+  const [pkg, setPkg] = useState("");
 
   function guard(): boolean {
     if (!device.connected || device.mode !== "adb") {
@@ -35,13 +40,31 @@ export function LogcatTab() {
 
   async function start() {
     if (!guard()) return;
+    // optional: filter to a specific app's process id
+    let pidArgs: string[] = [];
+    if (pkg.trim()) {
+      try {
+        const out = await runCapture("adb", ["shell", "pidof", pkg.trim()]);
+        const pid = out.trim().split(/\s+/)[0];
+        if (pid && /^\d+$/.test(pid)) {
+          pidArgs = ["--pid", pid];
+          push(`Filtering logcat to ${pkg.trim()} (pid ${pid}).`, "system");
+        } else {
+          push(`App ${pkg.trim()} is not running — start it on the phone first.`, "stderr");
+          return;
+        }
+      } catch (e) {
+        push(String(e), "stderr");
+        return;
+      }
+    }
     if (crashOnly) {
       push("Starting Logcat (crashes only)…", "system");
-      run("adb", ["logcat", "-v", "brief", "-s", "AndroidRuntime:E", "DEBUG:F", "System.err:W"]);
+      run("adb", ["logcat", "-v", "brief", ...pidArgs, "-s", "AndroidRuntime:E", "DEBUG:F", "System.err:W"]);
       return;
     }
     push(`Starting Logcat (level ${level}${tag ? `, filter "${tag}"` : ""})…`, "system");
-    const args = ["logcat", "-v", "brief"];
+    const args = ["logcat", "-v", "brief", ...pidArgs];
     if (tag.trim()) {
       args.push(`${tag.trim()}:${level}`, "*:S");
     } else {
@@ -115,6 +138,20 @@ export function LogcatTab() {
       </Section>
 
       <Section title={t("log.filter")}>
+        <div className="flex gap-1.5">
+          <AppCombobox value={pkg} onChange={setPkg} placeholder={t("log.byAppAll")} />
+          <Button
+            size="sm"
+            title={t("log.byAppRefresh")}
+            onClick={() => scanApps().catch(() => {})}
+            disabled={scanning}
+          >
+            <RefreshCw size={13} className={scanning ? "animate-spin" : ""} />
+          </Button>
+        </div>
+        <div className="-mt-1 text-[10.5px] leading-snug text-[var(--color-ink-faint)]">
+          {t("log.byApp")}
+        </div>
         <input
           value={tag}
           onChange={(e) => setTag(e.target.value)}

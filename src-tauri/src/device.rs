@@ -21,6 +21,43 @@ pub struct DeviceInfo {
     pub rom: String, // MIUI/HyperOS/OneUI version etc.
 }
 
+#[derive(Clone, Serialize)]
+pub struct AdbDeviceEntry {
+    pub serial: String,
+    pub state: String, // "device" | "unauthorized" | "offline" | other
+    pub model: String,
+}
+
+/// List every device adb currently sees, with its state. Used by the setup
+/// wizard to handle the no-device / unauthorized / multi-device cases.
+#[tauri::command]
+pub async fn list_devices(app: AppHandle) -> Result<Vec<AdbDeviceEntry>, String> {
+    let out = run_capture_internal(&app, "adb", &["devices".into(), "-l".into()])
+        .await
+        .unwrap_or_default();
+    let mut list = Vec::new();
+    for line in out.lines().skip(1) {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with("* daemon") {
+            continue;
+        }
+        let mut parts = line.split_whitespace();
+        let serial = parts.next().unwrap_or("").to_string();
+        let state = parts.next().unwrap_or("").to_string();
+        if serial.is_empty() || state.is_empty() {
+            continue;
+        }
+        // model= token is present in -l output for ready devices
+        let model = line
+            .split_whitespace()
+            .find_map(|t| t.strip_prefix("model:"))
+            .unwrap_or("")
+            .replace('_', " ");
+        list.push(AdbDeviceEntry { serial, state, model });
+    }
+    Ok(list)
+}
+
 async fn getprop(app: &AppHandle, prop: &str) -> String {
     let out = run_capture_internal(
         app,

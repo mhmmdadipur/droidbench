@@ -1,5 +1,5 @@
 // Mirror (embedded scrcpy) command + event bindings.
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, Channel } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 export interface MirrorMeta {
@@ -9,14 +9,15 @@ export interface MirrorMeta {
   height: number;
 }
 
-export interface MirrorFrame {
-  width: number;
-  height: number;
-  rgba_b64: string;
-}
-
-export function mirrorStart(maxSize = 1024, bitrate = 8_000_000): Promise<void> {
-  return invoke("mirror_start", { maxSize, bitrate });
+/** Start mirroring. Frames arrive as raw bytes over the returned Channel:
+ * each message is [w:u32 BE][h:u32 BE][rgba...]. */
+export function mirrorStart(
+  onFrame: Channel<ArrayBuffer>,
+  maxSize = 1024,
+  bitrate = 8_000_000,
+  maxFps = 30,
+): Promise<void> {
+  return invoke("mirror_start", { maxSize, bitrate, maxFps, onFrame });
 }
 export function mirrorStop(): Promise<void> {
   return invoke("mirror_stop");
@@ -64,9 +65,6 @@ export const INTENT = {
 
 export function onMirrorMeta(cb: (m: MirrorMeta) => void): Promise<UnlistenFn> {
   return listen<MirrorMeta>("mirror-meta", (e) => cb(e.payload));
-}
-export function onMirrorFrame(cb: (f: MirrorFrame) => void): Promise<UnlistenFn> {
-  return listen<MirrorFrame>("mirror-frame", (e) => cb(e.payload));
 }
 export function onMirrorError(cb: (msg: string) => void): Promise<UnlistenFn> {
   return listen<string>("mirror-error", (e) => cb(e.payload));

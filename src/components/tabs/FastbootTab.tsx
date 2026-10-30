@@ -8,6 +8,15 @@ export function FastbootTab() {
   const t = useTools();
   const { t: tr } = useI18n();
 
+  async function openUrl(url: string) {
+    try {
+      const { openUrl: open } = await import("@tauri-apps/plugin-opener");
+      await open(url);
+    } catch {
+      /* ignore */
+    }
+  }
+
   async function flash(partition: string) {
     const file = await open({
       multiple: false,
@@ -31,6 +40,35 @@ export function FastbootTab() {
   return (
     <>
       <TabHelp>{tr("fb.help")}</TabHelp>
+
+      <Section title={tr("fb.guide.title")}>
+        <p className="text-[11px] leading-snug text-[var(--color-ink-soft)]">{tr("fb.guide.intro")}</p>
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5 text-[11px] leading-snug">
+          <div className="mb-1 font-semibold text-[var(--color-brand-600)]">{tr("fb.guide.ubl")}</div>
+          <ul className="flex flex-col gap-1 text-[var(--color-ink-soft)]">
+            <li>• {tr("fb.guide.ubl.xiaomi")}</li>
+            <li>• {tr("fb.guide.ubl.samsung")}</li>
+            <li>• {tr("fb.guide.ubl.pixel")}</li>
+            <li>• {tr("fb.guide.ubl.generic")}</li>
+          </ul>
+        </div>
+        <div className="mb-1 mt-1 text-[11px] font-semibold text-[var(--color-brand-600)]">{tr("fb.guide.rom")}</div>
+        <p className="text-[10.5px] leading-snug text-[var(--color-ink-faint)]">{tr("fb.guide.romHint")}</p>
+        <Row>
+          <Button size="sm" onClick={() => openUrl("https://wiki.lineageos.org/devices/")}>
+            {tr("fb.guide.lineage")}
+          </Button>
+          <Button size="sm" onClick={() => openUrl("https://download.pixelexperience.org/")}>
+            {tr("fb.guide.pixelexp")}
+          </Button>
+        </Row>
+        <Button size="block" onClick={() => openUrl("https://xdaforums.com/")}>
+          {tr("fb.guide.xda")}
+        </Button>
+        <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-[10.5px] leading-snug text-amber-700">
+          {tr("fb.guide.warn")}
+        </p>
+      </Section>
 
       <Section title={tr("fb.rebootInfo")}>
         <Row>

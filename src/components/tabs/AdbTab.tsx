@@ -19,6 +19,8 @@ export function AdbTab() {
   const [recDevPath, setRecDevPath] = useState("");
   const [recDest, setRecDest] = useState("");
   const [wifiIp, setWifiIp] = useState("");
+  const [url, setUrl] = useState("");
+  const [typeText, setTypeText] = useState("");
 
   function guard(): boolean {
     if (!device.connected || device.mode !== "adb") {
@@ -26,6 +28,14 @@ export function AdbTab() {
       return false;
     }
     return true;
+  }
+
+  function sendText() {
+    const tx = typeText.trim();
+    if (!tx) return;
+    // adb input text uses %s for spaces
+    t.adb(["shell", "input", "text", tx.replace(/ /g, "%s")]);
+    setTypeText("");
   }
 
   async function takeScreenshot() {
@@ -131,10 +141,10 @@ export function AdbTab() {
     const win = new WebviewWindow("mirror", {
       url: "index.html?view=mirror",
       title: "Droidbench Mirror",
-      width: 760,
-      height: 860,
-      minWidth: 560,
-      minHeight: 600,
+      width: 680,
+      height: 900,
+      minWidth: 520,
+      minHeight: 640,
       resizable: true,
       decorations: false,
       shadow: true,
@@ -215,6 +225,40 @@ export function AdbTab() {
         >
           {tr("adb.wirelessConnect")}
         </Button>
+      </Section>
+
+      <Section title={tr("adb.devtools")}>
+        <div className="flex gap-1.5">
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={tr("adb.openUrlPlaceholder")}
+            className="no-drag min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12px] text-[var(--color-ink)] outline-none focus:border-[var(--color-brand)]"
+          />
+          <Button
+            title={tr("adb.openUrlHint")}
+            onClick={() => {
+              const u = url.trim();
+              if (u) t.adb(["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", u]);
+            }}
+          >
+            {tr("adb.go")}
+          </Button>
+        </div>
+        <div className="flex gap-1.5">
+          <input
+            value={typeText}
+            onChange={(e) => setTypeText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") sendText();
+            }}
+            placeholder={tr("adb.inputTextPlaceholder")}
+            className="no-drag min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12px] text-[var(--color-ink)] outline-none focus:border-[var(--color-brand)]"
+          />
+          <Button title={tr("adb.inputTextHint")} onClick={sendText}>
+            {tr("adb.send")}
+          </Button>
+        </div>
       </Section>
 
       <Section title={tr("adb.reboot")}>

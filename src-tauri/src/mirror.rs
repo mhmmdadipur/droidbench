@@ -11,6 +11,7 @@
 use std::sync::Arc;
 
 use serde::Serialize;
+use tauri::ipc::{Channel, Response};
 use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -20,7 +21,6 @@ use crate::runner::{resolve_resource, resolve_tool};
 
 /// scrcpy-server version string — MUST match the bundled scrcpy-server exactly.
 const SCRCPY_SERVER_VERSION: &str = "5.0.1";
-const DEVICE_NAME_LEN: usize = 64;
 
 /// Metadata emitted once at stream start.
 #[derive(Clone, Serialize)]
@@ -29,16 +29,6 @@ pub struct MirrorMeta {
     pub codec: String, // "h264" | "h265" | "av1"
     pub width: u32,
     pub height: u32,
-}
-
-/// A decoded RGBA frame sent to the frontend for direct canvas rendering.
-/// This path decodes H.264 in Rust (openh264), so it does not depend on the
-/// WebView having working WebCodecs/WASM.
-#[derive(Clone, Serialize)]
-pub struct MirrorFrame {
-    pub width: u32,
-    pub height: u32,
-    pub rgba_b64: String,
 }
 
 /// Holds the live control socket so input commands can be written to it.
@@ -50,25 +40,6 @@ pub struct MirrorState {
     pub socket_name: Arc<Mutex<Option<String>>>,
 }
 
-fn b64(data: &[u8]) -> String {
-    // small, dependency-free base64 encoder (standard alphabet)
-    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
-    for chunk in data.chunks(3) {
-        let b = [
-            chunk[0],
-            *chunk.get(1).unwrap_or(&0),
-            *chunk.get(2).unwrap_or(&0),
-        ];
-        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | (b[2] as u32);
-        out.push(T[((n >> 18) & 63) as usize] as char);
-        out.push(T[((n >> 12) & 63) as usize] as char);
-        out.push(if chunk.len() > 1 { T[((n >> 6) & 63) as usize] as char } else { '=' });
-        out.push(if chunk.len() > 2 { T[(n & 63) as usize] as char } else { '=' });
-    }
-    out
-}
-
 fn codec_name(id: u32) -> String {
     // scrcpy codec ids are 4 ASCII bytes packed big-endian
     match &id.to_be_bytes() {
@@ -76,31 +47,6 @@ fn codec_name(id: u32) -> String {
         b"h265" => "h265".into(),
         b"av01" => "av1".into(),
         other => String::from_utf8_lossy(other).trim_matches('\0').to_string(),
-    }
-}
-
-/// Parsed scrcpy frame header (12 bytes).
-#[derive(Debug, PartialEq, Eq)]
-pub struct FrameHeader {
-    pub pts: u64,
-    pub config: bool,
-    pub keyframe: bool,
-    pub size: usize,
-}
-
-/// Parse the 12-byte per-packet header: u64 pts+flags, u32 size.
-/// Top bit = config (SPS/PPS), next bit = keyframe, remaining 62 bits = PTS.
-pub fn parse_frame_header(h: &[u8; 12]) -> FrameHeader {
-    const PACKET_FLAG_CONFIG: u64 = 1 << 63;
-    const PACKET_FLAG_KEY_FRAME: u64 = 1 << 62;
-    const PTS_MASK: u64 = (1 << 62) - 1;
-    let pts_flags = u64::from_be_bytes([h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7]]);
-    let size = u32::from_be_bytes([h[8], h[9], h[10], h[11]]) as usize;
-    FrameHeader {
-        pts: pts_flags & PTS_MASK,
-        config: pts_flags & PACKET_FLAG_CONFIG != 0,
-        keyframe: pts_flags & PACKET_FLAG_KEY_FRAME != 0,
-        size,
     }
 }
 
@@ -128,6 +74,8 @@ pub async fn mirror_start(
     state: State<'_, MirrorState>,
     max_size: Option<u32>,
     bitrate: Option<u32>,
+    max_fps: Option<u32>,
+    on_frame: Channel<Response>,
 ) -> Result<(), String> {
     {
         let mut running = state.running.lock().await;
@@ -194,6 +142,9 @@ pub async fn mirror_start(
     if let Some(b) = bitrate {
         server_cmd.push_str(&format!(" video_bit_rate={b}"));
     }
+    // cap the frame rate the device encodes — fewer frames = less decode +
+    // less IPC, which removes the backlog that makes the mirror feel laggy.
+    server_cmd.push_str(&format!(" max_fps={}", max_fps.unwrap_or(30)));
     // NOTE 1: do NOT force a profile. Forcing baseline (profile=1) on some
     // device encoders (e.g. Qualcomm OMX) produces a non-compliant bitstream
     // that OpenH264 rejects. The encoder's native profile decodes cleanly.
@@ -247,6 +198,7 @@ pub async fn mirror_start(
     //    u64 pts_and_flags (top 2 bits flags: config, keyframe), u32 size
     let running = state.running.clone();
     let app2 = app.clone();
+    let frame_chan = on_frame.clone();
     tokio::spawn(async move {
         // Decode H.264 in Rust with openh264 and emit RGBA frames.
         //
@@ -312,7 +264,7 @@ pub async fn mirror_start(
                 if t == 0 || t > 23 {
                     continue;
                 }
-                decode_au(&mut decoder, unit, &app2, &mut frame_count).await;
+                decode_au(&mut decoder, unit, &app2, &frame_chan, &mut frame_count).await;
             }
         }
         *running.lock().await = false;
@@ -322,28 +274,27 @@ pub async fn mirror_start(
     Ok(())
 }
 
-/// Decode one access unit (SPS/PPS/… + VCL slice) and emit an RGBA frame.
+/// Decode one access unit (SPS/PPS/… + VCL slice) and send an RGBA frame over
+/// the channel as raw bytes: [w:u32 BE][h:u32 BE][rgba...]. Sending raw bytes
+/// (not base64-in-JSON) removes the biggest per-frame cost and the latency it
+/// caused.
 async fn decode_au(
     decoder: &mut openh264::decoder::Decoder,
     au: &[u8],
     app: &AppHandle,
+    chan: &Channel<Response>,
     frame_count: &mut u64,
 ) {
     use openh264::formats::YUVSource;
     match decoder.decode(au) {
         Ok(Some(yuv)) => {
             let (w, h) = yuv.dimensions();
-            let mut rgba = vec![0u8; w * h * 4];
-            yuv.write_rgba8(&mut rgba);
+            let mut buf = vec![0u8; 8 + w * h * 4];
+            buf[0..4].copy_from_slice(&(w as u32).to_be_bytes());
+            buf[4..8].copy_from_slice(&(h as u32).to_be_bytes());
+            yuv.write_rgba8(&mut buf[8..]);
             *frame_count += 1;
-            let _ = app.emit(
-                "mirror-frame",
-                MirrorFrame {
-                    width: w as u32,
-                    height: h as u32,
-                    rgba_b64: b64(&rgba),
-                },
-            );
+            let _ = chan.send(Response::new(buf));
         }
         Ok(None) => {}
         Err(e) => {

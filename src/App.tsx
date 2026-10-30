@@ -12,6 +12,7 @@ import {
   Wifi,
   LayoutGrid,
   ScrollText,
+  Wrench,
 } from "lucide-react";
 import { TitleBar } from "./components/TitleBar";
 import { DeviceStatus } from "./components/DeviceStatus";
@@ -30,6 +31,7 @@ import { DiagnosticTab } from "./components/tabs/DiagnosticTab";
 import { ConnectivityTab } from "./components/tabs/ConnectivityTab";
 import { AppManagerTab } from "./components/tabs/AppManagerTab";
 import { LogcatTab } from "./components/tabs/LogcatTab";
+import { DeveloperTab } from "./components/tabs/DeveloperTab";
 import { DeviceProvider, useDevice } from "./state/device";
 import { LogProvider, useLog } from "./state/log";
 import { ToolsProvider } from "./state/tools";
@@ -45,6 +47,7 @@ type TabId =
   | "appmanager"
   | "logcat"
   | "connectivity"
+  | "developer"
   | "fastboot"
   | "xiaomi"
   | "samsung"
@@ -58,6 +61,7 @@ const TABS: { id: TabId; labelKey: TKey; icon: typeof Smartphone; descKey: TKey;
   { id: "appmanager", labelKey: "tab.appmanager", icon: LayoutGrid, descKey: "tab.appmanager.desc", group: "device" },
   { id: "logcat", labelKey: "tab.logcat", icon: ScrollText, descKey: "tab.logcat.desc", group: "device" },
   { id: "connectivity", labelKey: "tab.connectivity", icon: Wifi, descKey: "tab.connectivity.desc", group: "device" },
+  { id: "developer", labelKey: "tab.developer", icon: Wrench, descKey: "tab.developer.desc", group: "device" },
   { id: "fastboot", labelKey: "tab.fastboot", icon: Zap, descKey: "tab.fastboot.desc", group: "flashing" },
   { id: "xiaomi", labelKey: "tab.xiaomi", icon: Boxes, descKey: "tab.xiaomi.desc", group: "flashing" },
   { id: "samsung", labelKey: "tab.samsung", icon: PackageOpen, descKey: "tab.samsung.desc", group: "flashing" },
@@ -81,6 +85,8 @@ function TabContent({ tab }: { tab: TabId }) {
       return <LogcatTab />;
     case "connectivity":
       return <ConnectivityTab />;
+    case "developer":
+      return <DeveloperTab />;
     case "fastboot":
       return <FastbootTab />;
     case "xiaomi":
@@ -152,9 +158,32 @@ function Shell() {
   const activeTab = TABS.find((t) => t.id === tab);
   const groupTabs = TABS.filter((tb) => tb.group === group);
   const activeGroup = GROUPS.find((g) => g.id === group);
-  // Show the setup/connection wizard whenever there's no ready adb device —
-  // nothing in the tabs works without one, and first-time users need guidance.
+  // Pop the connection-guide window whenever there's no ready adb device. It
+  // lives in its own window so the main UI stays fully clickable, and it closes
+  // itself once a phone is ready.
   const needsSetup = !(device.connected && device.mode === "adb");
+  useEffect(() => {
+    if (!needsSetup) return;
+    let cancelled = false;
+    (async () => {
+      const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+      const existing = await WebviewWindow.getByLabel("setup");
+      if (existing || cancelled) return;
+      new WebviewWindow("setup", {
+        url: "index.html?view=setup",
+        title: "Droidbench — Connect",
+        width: 460,
+        height: 640,
+        resizable: true,
+        decorations: false,
+        shadow: true,
+        transparent: true,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [needsSetup]);
 
   function switchGroup(g: TabGroup) {
     setGroup(g);
@@ -246,24 +275,14 @@ function Shell() {
         {/* COLUMN 2 — active tab content (roomy, no nested scroll cramping) */}
         <div className="flex w-[330px] shrink-0 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
           <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
-            {needsSetup ? (
-              <>
-                <Smartphone size={16} className="text-[var(--color-brand-600)]" />
-                <span className="text-[13px] font-semibold text-[var(--color-ink)]">
-                  {t("setup.title")}
-                </span>
-              </>
-            ) : (
-              <>
-                {activeTab && <activeTab.icon size={16} className="text-[var(--color-brand-600)]" />}
-                <span className="text-[13px] font-semibold text-[var(--color-ink)]">
-                  {activeTab && t(activeTab.labelKey)}
-                </span>
-              </>
-            )}
+            {activeTab && <activeTab.icon size={16} className="text-[var(--color-brand-600)]" />}
+            <span className="text-[13px] font-semibold text-[var(--color-ink)]">
+              {activeTab && t(activeTab.labelKey)}
+            </span>
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-4">
-            {needsSetup ? <SetupWizard /> : <TabContent tab={tab} />}
+            {needsSetup && <ConnectBanner />}
+            <TabContent tab={tab} />
           </div>
         </div>
 
@@ -278,6 +297,97 @@ function Shell() {
 
 function RightPanel() {
   return <LogPanel />;
+}
+
+/** Small inline banner at the top of the content column when no device is
+ * ready — with a button to (re)open the connection guide window. */
+function ConnectBanner() {
+  const { t } = useI18n();
+  async function openGuide() {
+    const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+    const existing = await WebviewWindow.getByLabel("setup");
+    if (existing) {
+      existing.setFocus();
+      return;
+    }
+    new WebviewWindow("setup", {
+      url: "index.html?view=setup",
+      title: "Droidbench — Connect",
+      width: 460,
+      height: 640,
+      resizable: true,
+      decorations: false,
+      shadow: true,
+      transparent: true,
+    });
+  }
+  return (
+    <button
+      onClick={openGuide}
+      className="no-drag mb-3 flex w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-[11.5px] leading-snug text-amber-800 transition-colors hover:bg-amber-100"
+    >
+      <Smartphone size={15} className="shrink-0" />
+      <span className="flex-1">{t("setup.title")}</span>
+      <span className="shrink-0 rounded-md bg-amber-200/70 px-2 py-0.5 text-[10px] font-semibold">
+        {t("setup.openWindow")}
+      </span>
+    </button>
+  );
+}
+
+/** Standalone page shown in the separate connection-guide window. */
+function SetupPage() {
+  return (
+    <div className="flex h-screen flex-col bg-[var(--color-bg)]">
+      <div
+        data-tauri-drag-region
+        className="drag flex h-11 shrink-0 items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4"
+      >
+        <SetupTrafficLights />
+        <div className="ml-2 flex items-center gap-2">
+          <div className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--color-brand)] text-[11px] font-bold text-white">
+            D
+          </div>
+          <Smartphone size={14} className="text-[var(--color-brand-600)]" />
+          <span className="text-[13px] font-semibold tracking-tight text-[var(--color-ink)]">
+            {/* title set via i18n inside SetupWizard header area */}
+            Droidbench
+          </span>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto p-4">
+        <SetupWizard inWindow />
+      </div>
+    </div>
+  );
+}
+
+function SetupTrafficLights() {
+  async function close() {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    getCurrentWindow().close();
+  }
+  async function minimize() {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    getCurrentWindow().minimize();
+  }
+  const Light = ({ color, hover, onClick, title }: { color: string; hover: string; onClick: () => void; title: string }) => (
+    <button
+      title={title}
+      onClick={onClick}
+      className="no-drag h-3 w-3 rounded-full"
+      style={{ backgroundColor: color }}
+      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hover)}
+      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = color)}
+    />
+  );
+  return (
+    <div className="no-drag flex items-center gap-2">
+      <Light title="Close" color="#ff5f57" hover="#ff3b30" onClick={close} />
+      <Light title="Minimize" color="#febc2e" hover="#ffb000" onClick={minimize} />
+      <span className="h-3 w-3 rounded-full bg-[#ddd]" />
+    </div>
+  );
 }
 
 /** Standalone page shown in the separate mirror window. */
@@ -342,6 +452,19 @@ export default function App() {
           <LogProvider>
             <FileExplorer />
           </LogProvider>
+        </DeviceProvider>
+      </I18nProvider>
+    );
+  }
+  if (view === "setup") {
+    return (
+      <I18nProvider>
+        <DeviceProvider>
+          <ToolsProvider>
+            <LogProvider>
+              <SetupPage />
+            </LogProvider>
+          </ToolsProvider>
         </DeviceProvider>
       </I18nProvider>
     );

@@ -481,6 +481,27 @@ function AuthRows({ report }: { report: DiagnosticReport }) {
   };
   const integ = intMap[s.integrityNote];
 
+  // detect known root-hiding / integrity-spoofing modules (read-only)
+  const hidingMatch = report.rootModules.filter((m) =>
+    /shamiko|zygisk|susfs|playintegrity|integrityfix|tricky.?store|hma|hide.?my/i.test(
+      `${m.id} ${m.name}`,
+    ),
+  );
+  const hidingNames = Array.from(
+    new Set(
+      hidingMatch.map((m) => {
+        const s2 = `${m.id} ${m.name}`.toLowerCase();
+        if (s2.includes("shamiko")) return "Shamiko";
+        if (s2.includes("susfs")) return "SUSFS";
+        if (s2.includes("zygisk")) return "Zygisk";
+        if (s2.includes("playintegrity") || s2.includes("integrityfix")) return "PIF";
+        if (s2.includes("tricky")) return "TrickyStore";
+        if (s2.includes("hma") || s2.includes("hide")) return "HMA";
+        return m.name;
+      }),
+    ),
+  );
+
   return (
     <>
       <AuthRow k={t("diag.auth.bootloader")} v={bl.v} tone={bl.tone} />
@@ -488,6 +509,17 @@ function AuthRows({ report }: { report: DiagnosticReport }) {
       <AuthRow k={t("diag.auth.root")} v={root.v} tone={root.tone} />
       <AuthRow k={t("diag.auth.rom")} v={rom.v} tone={rom.tone} />
       <AuthRow k={t("diag.auth.integrity")} v={integ.v} tone={integ.tone} />
+      {report.system.rooted && (
+        <AuthRow
+          k={t("diag.auth.hiding")}
+          v={
+            hidingNames.length > 0
+              ? t("diag.auth.hiding.active", { list: hidingNames.join(", ") })
+              : t("diag.auth.hiding.none")
+          }
+          tone={hidingNames.length > 0 ? "warn" : "neutral"}
+        />
+      )}
       <AuthRow
         k={t("diag.auth.selinux")}
         v={report.system.selinux}

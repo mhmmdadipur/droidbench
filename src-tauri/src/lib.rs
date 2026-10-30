@@ -24,6 +24,7 @@ pub fn run() {
             runner::cancel_command,
             runner::check_tools,
             device::detect_device,
+            device::list_devices,
             debloat::load_debloat_db,
             debloat::list_installed_packages,
             debloat::list_disabled_packages,

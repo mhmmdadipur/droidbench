@@ -69,6 +69,15 @@ export function detectDevice(): Promise<DeviceInfo> {
   return invoke<DeviceInfo>("detect_device");
 }
 
+export interface AdbDeviceEntry {
+  serial: string;
+  state: string; // "device" | "unauthorized" | "offline" | other
+  model: string;
+}
+export function listDevices(): Promise<AdbDeviceEntry[]> {
+  return invoke<AdbDeviceEntry[]>("list_devices");
+}
+
 export function checkTools(): Promise<ToolStatus[]> {
   return invoke<ToolStatus[]>("check_tools");
 }
