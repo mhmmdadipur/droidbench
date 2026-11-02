@@ -82,6 +82,11 @@ export function checkTools(): Promise<ToolStatus[]> {
   return invoke<ToolStatus[]>("check_tools");
 }
 
+/** Install a bundled FOSS hardware-test APK by short id ("injuredpixels" | "hardware-test"). */
+export function installApk(which: string): Promise<string> {
+  return invoke<string>("install_apk", { which });
+}
+
 export function loadDebloatDb(id: string): Promise<DebloatDatabase> {
   return invoke<DebloatDatabase>("load_debloat_db", { id });
 }

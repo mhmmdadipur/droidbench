@@ -16,6 +16,8 @@ dist-ssr
 # scripts/fetch-binaries.sh (too large / platform-specific to commit)
 src-tauri/binaries/*
 !src-tauri/binaries/.gitkeep
+# bundled FOSS hardware-test APKs (small, license-permitted, shipped as resources)
+!src-tauri/binaries/*.apk
 
 # Build output
 *.app

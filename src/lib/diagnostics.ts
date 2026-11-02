@@ -53,16 +53,43 @@ export interface SystemInfo {
   encrypted: string;
   rooted: boolean;
   maxTempC: number | null;
+  /** Device serial (ro.serialno) — may be empty on newer Android. */
+  serialNo: string;
+  /** IMEI read via ADB, if obtainable (often blank on Android 10+). */
+  imei: string;
+  /** Firmware build epoch (seconds) → used to estimate firmware age. */
+  buildEpoch: number | null;
   authenticity: "original" | "modified" | "unknown";
   // granular signals for the split "System & Authenticity" view
   bootloader: "locked" | "unlocked" | "unknown";
   verifiedBoot: string; // green/yellow/orange/red/unknown
   rootManager: string; // "KernelSU" | "Magisk" | "APatch" | "none" | "unknown"
   customRom: { isCustom: boolean; name: string };
-  integrityNote: "likely-pass" | "likely-fail" | "spoofed" | "unknown";
+  /**
+   * Estimated Play Integrity verdict, split into Google's three nested tiers
+   * (what an on-device Integrity Checker shows as BASIC / DEVICE / STRONG).
+   * Each is an honest heuristic from boot state + root + hiding modules — the
+   * real verdict can only come from an app calling Google's API.
+   */
+  integrity: {
+    basic: IntegrityTier;
+    device: IntegrityTier;
+    strong: IntegrityTier;
+  };
   hasIntegrityModule: boolean;
+  /** Root-hiding / tamper-concealment assessment. */
+  rootHiding: {
+    state: "active" | "none" | "na";
+    /** Named modules we could identify (Shamiko, SUSFS, PIF, …). */
+    names: string[];
+    /** Why we concluded hiding is active even without a named module. */
+    reason: "module" | "inferred" | "none";
+  };
   buildTags: string;
 }
+
+/** One Play Integrity tier estimate. */
+export type IntegrityTier = "pass" | "fail" | "spoofed" | "unknown";
 
 export interface CameraInfo {
   count: number | null;
@@ -322,6 +349,31 @@ function authenticityOf(
   return modified ? "modified" : "original";
 }
 
+/**
+ * Parse the output of `service call iphonesubinfo 1`. The Parcel dumps the
+ * IMEI as UTF-16 code units inside quoted hex blocks, e.g.:
+ *   Result: Parcel(... '....3.5.4.3.2.1...' ...)
+ * We extract the ASCII digits that appear between the dots. Returns "" when
+ * nothing parseable is found (common on Android 10+ without permission).
+ */
+function parseImei(dump: string): string {
+  if (!dump || /Parcel\(NULL\)|Exception|Permission|SecurityException/i.test(dump)) return "";
+  // pull every single ASCII digit that appears as a lone char in the quoted
+  // sections, in order; a valid IMEI is 14–16 digits.
+  const quoted = dump.match(/'([^']*)'/g);
+  if (!quoted) return "";
+  let digits = "";
+  for (const q of quoted) {
+    for (const ch of q) {
+      if (ch >= "0" && ch <= "9") digits += ch;
+    }
+  }
+  // IMEI/MEID is 14–16 digits; reject obvious noise
+  if (digits.length >= 14 && digits.length <= 17) return digits.slice(0, 15);
+  if (digits.length >= 15) return digits.slice(0, 15);
+  return "";
+}
+
 function bootloaderOf(props: Map<string, string>): "locked" | "unlocked" | "unknown" {
   const locked = props.get("ro.boot.flash.locked");
   const devstate = props.get("ro.boot.vbmeta.device_state");
@@ -377,23 +429,131 @@ function customRomOf(props: Map<string, string>): { isCustom: boolean; name: str
 }
 
 /**
- * Play Integrity can only be *measured* by an on-device checker that calls
- * Google's API — not via ADB. We report an HONEST indicator of likelihood:
- *  - spoofed: a PIF-type module is installed (verdict is being faked)
- *  - likely-fail: unlocked / non-green verified boot / test-keys
- *  - likely-pass: locked + green + release-keys, no spoofing module
+ * Estimate Play Integrity across Google's three nested tiers, the way an
+ * on-device Integrity Checker reports them:
+ *
+ *  BASIC  — "is this a real Android device running a genuine app install".
+ *           Almost always passes on real hardware; only emulators / heavy
+ *           tampering fail. A root-hiding stack keeps this green.
+ *  DEVICE — "bootloader locked + verified boot as Google expects".
+ *           A clean stock phone passes. A rooted phone passes ONLY if a
+ *           hiding/spoofing stack is faking the boot signals.
+ *  STRONG — hardware-backed key attestation (TEE/StrongBox). This CANNOT be
+ *           spoofed by a Magisk/KSU module: once the bootloader has ever been
+ *           unlocked / the device is rooted, STRONG fails. This is why a hidden
+ *           root still shows "STRONG ✗".
+ *
+ * `hidingActive` = we believe a concealment stack is in effect (see
+ * rootHidingOf) — it lets BASIC/DEVICE pass despite root, but never STRONG.
  */
-function integrityNoteOf(
+function integrityTiersOf(
   props: Map<string, string>,
-  hasIntegrityModule: boolean,
-): "likely-pass" | "likely-fail" | "spoofed" | "unknown" {
-  if (hasIntegrityModule) return "spoofed";
+  rooted: boolean,
+  hidingActive: boolean,
+): { basic: IntegrityTier; device: IntegrityTier; strong: IntegrityTier } {
   const locked = props.get("ro.boot.flash.locked");
+  const devstate = props.get("ro.boot.vbmeta.device_state");
   const vbstate = props.get("ro.boot.verifiedbootstate");
   const tags = props.get("ro.build.tags") ?? "";
-  if (locked == null && vbstate == null && !tags) return "unknown";
-  const bad = locked === "0" || (vbstate && vbstate !== "green") || tags.includes("test-keys");
-  return bad ? "likely-fail" : "likely-pass";
+  const debuggable = props.get("ro.debuggable");
+
+  const haveBootSignals =
+    locked != null || devstate != null || vbstate != null || !!tags;
+
+  // raw (un-hidden) boot health
+  const blUnlocked = locked === "0" || devstate === "unlocked";
+  const vbBad = vbstate != null && vbstate !== "green";
+  const testKeys = tags.includes("test-keys");
+  const debug = debuggable === "1";
+  const bootDirty = blUnlocked || vbBad || testKeys || debug;
+
+  // Any tampering at all (root or dirty boot) means the device has been
+  // modified; whether Google *sees* it depends on the hiding stack + tier.
+  const tampered = rooted || bootDirty;
+
+  // BASIC: passes on real hardware unless something is grossly wrong and not
+  // concealed. With an active hiding stack it always passes.
+  const basic: IntegrityTier = hidingActive
+    ? "spoofed"
+    : !tampered
+      ? "pass"
+      : // rooted/dirty but no concealment: basic usually still passes (it's lenient)
+        "pass";
+
+  // DEVICE: needs locked bootloader + green verified boot. Concealment can fake
+  // this, so an active hiding stack → spoofed-pass. Otherwise it reflects the
+  // real boot state.
+  let device: IntegrityTier;
+  if (hidingActive) device = "spoofed";
+  else if (!haveBootSignals && !rooted) device = "unknown";
+  else device = tampered ? "fail" : "pass";
+
+  // STRONG: hardware attestation — cannot be spoofed by modules. Fails the
+  // moment the device is rooted or the bootloader has been unlocked.
+  let strong: IntegrityTier;
+  if (!haveBootSignals && !rooted) strong = "unknown";
+  else strong = tampered ? "fail" : "pass";
+
+  return { basic, device, strong };
+}
+
+/** Known hiding/spoofing module name patterns → canonical label. */
+function hidingModuleNames(modules: RootModule[]): string[] {
+  const re = /shamiko|zygisk|susfs|playintegrity|integrityfix|safetynet|teesim|tricky.?store|hma|hide.?my|nohello|magiskhide/i;
+  const names = modules
+    .filter((m) => re.test(`${m.id} ${m.name}`))
+    .map((m) => {
+      const s = `${m.id} ${m.name}`.toLowerCase();
+      if (s.includes("shamiko")) return "Shamiko";
+      if (s.includes("susfs")) return "SUSFS";
+      if (s.includes("zygisk")) return "Zygisk";
+      if (s.includes("playintegrity") || s.includes("integrityfix")) return "PIF";
+      if (s.includes("tricky")) return "TrickyStore";
+      if (s.includes("nohello")) return "NoHello";
+      if (s.includes("hma") || s.includes("hide") || s.includes("magiskhide")) return "HMA/Hide";
+      return m.name;
+    });
+  return Array.from(new Set(names));
+}
+
+/**
+ * Assess whether a root-hiding / tamper-concealment stack is in effect.
+ *
+ * The old logic only matched module names, so a device that hides root with a
+ * method we don't recognise (or via SUSFS baked into the kernel, Zygisk-next,
+ * a renamed module, etc.) was wrongly reported as "none detected".
+ *
+ * We now also INFER hiding from a contradiction: if the device is clearly
+ * rooted yet its boot signals look pristine (bootloader locked / verified-boot
+ * green / release-keys), something is actively faking those signals — because
+ * un-hidden root always dirties them. That matches the real-world case where
+ * BASIC + DEVICE pass but STRONG fails.
+ */
+function rootHidingOf(
+  props: Map<string, string>,
+  rooted: boolean,
+  modules: RootModule[],
+): { state: "active" | "none" | "na"; names: string[]; reason: "module" | "inferred" | "none" } {
+  const names = hidingModuleNames(modules);
+  if (names.length > 0) return { state: "active", names, reason: "module" };
+
+  if (!rooted) return { state: "na", names: [], reason: "none" };
+
+  // rooted but no named module → infer from a "too clean" boot state
+  const locked = props.get("ro.boot.flash.locked");
+  const devstate = props.get("ro.boot.vbmeta.device_state");
+  const vbstate = props.get("ro.boot.verifiedbootstate");
+  const tags = props.get("ro.build.tags") ?? "";
+  const debuggable = props.get("ro.debuggable");
+
+  const bootLooksClean =
+    (locked === "1" || devstate === "locked") &&
+    (vbstate == null || vbstate === "green") &&
+    !tags.includes("test-keys") &&
+    debuggable !== "1";
+
+  if (bootLooksClean) return { state: "active", names: [], reason: "inferred" };
+  return { state: "none", names: [], reason: "none" };
 }
 
 /** Run the full scan. `adb` is the tool name used by runCapture. */
@@ -418,6 +578,7 @@ export async function runDiagnosticScan(): Promise<DiagnosticReport> {
     suCheck,
     rootModulesDump,
     rootMarkers,
+    imeiDump,
   ] = await Promise.all([
     runCapture("adb", ["shell", "getprop"]),
     runCapture("adb", ["shell", "dumpsys", "battery"]),
@@ -466,6 +627,9 @@ export async function runDiagnosticScan(): Promise<DiagnosticReport> {
       "shell",
       'su -c "ls -d /data/adb/ksu /data/adb/ksud /data/adb/magisk /data/adb/ap 2>/dev/null; ksud -V 2>/dev/null; magisk -V 2>/dev/null" 2>/dev/null',
     ]),
+    // IMEI via telephony service (slot 1). Encoded output; parsed best-effort.
+    // Often blocked on Android 10+ without privileged perms — handled gracefully.
+    runCapture("adb", ["shell", "service", "call", "iphonesubinfo", "1"]),
   ]);
 
   const props = parseGetprop(propDump);
@@ -491,6 +655,8 @@ export async function runDiagnosticScan(): Promise<DiagnosticReport> {
   const hasIntegrityModule = rootModules.some((m) =>
     /playintegrity|integrityfix|safetynet|teesim|tricky.?store/i.test(`${m.id} ${m.name}`),
   );
+  const rootHiding = rootHidingOf(props, rooted, rootModules);
+  const hidingActive = rootHiding.state === "active";
 
   return {
     battery: parseBattery(batteryDump, batterySysfs),
@@ -512,13 +678,17 @@ export async function runDiagnosticScan(): Promise<DiagnosticReport> {
       encrypted: props.get("ro.crypto.state") || "—",
       rooted,
       maxTempC,
+      serialNo: props.get("ro.serialno") || props.get("ro.boot.serialno") || "—",
+      imei: parseImei(imeiDump),
+      buildEpoch: num(props.get("ro.build.date.utc")),
       authenticity: authenticityOf(props, rooted),
       bootloader: bootloaderOf(props),
       verifiedBoot: props.get("ro.boot.verifiedbootstate") || "unknown",
       rootManager: rootManagerOf(rootMarkers, rooted),
       customRom: customRomOf(props),
-      integrityNote: integrityNoteOf(props, hasIntegrityModule),
+      integrity: integrityTiersOf(props, rooted, hidingActive),
       hasIntegrityModule,
+      rootHiding,
       buildTags: props.get("ro.build.tags") || "—",
     },
     sensors: parseSensors(sensorsDump, features),

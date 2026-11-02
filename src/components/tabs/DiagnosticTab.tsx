@@ -15,10 +15,17 @@ import {
   Circle,
   Phone,
   FolderOpen,
+  Package,
+  ExternalLink,
+  Download,
+  Loader2,
+  Scale,
+  BadgeCheck,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Section, TabHelp } from "../ui/Section";
-import { runCapture } from "../../lib/api";
+import { LicenseModal } from "../LicenseModal";
+import { runCapture, installApk } from "../../lib/api";
 import { useLog } from "../../state/log";
 import { useDevice } from "../../state/device";
 import { useDiagnostic } from "../../state/diagnostic";
@@ -32,6 +39,7 @@ import {
   OPTIONAL_SENSORS,
   type DiagnosticReport,
   type SensorKey,
+  type IntegrityTier,
 } from "../../lib/diagnostics";
 
 type Mode = "simple" | "technical";
@@ -75,16 +83,118 @@ interface CheckItem {
   id: string;
   labelKey: TKey;
   hintKey: TKey;
-  /** optional adb trigger to actually exercise the hardware */
+  /** optional adb trigger to actually exercise the hardware (e.g. buzz motor) */
   trigger?: string[];
+  /**
+   * optional adb action that makes SOMETHING show up on the phone so the user
+   * can run the physical test (open the camera for the flashlight, open the
+   * NFC settings screen, launch a tone, …). Shown as an "Open on phone" button.
+   */
+  open?: { label: TKey; args: string[] };
+  /** only offer this check when the sensor/feature is actually present */
+  requires?: SensorKey;
+  /**
+   * an open-source app that performs this test (e.g. InjuredPixels for dead
+   * pixels / touch). Shows an "Open app" button; if it isn't installed yet we
+   * install the bundled APK first. `pkg` is the Android package to launch.
+   */
+  app?: { apk: string; pkg: string };
+  /** show a small "needs app" hint — this test is best run with a test app. */
+  appHint?: boolean;
 }
 const CHECKS: CheckItem[] = [
-  { id: "vibrate", labelKey: "diag.check.vibrate", hintKey: "diag.check.vibrateHint", trigger: ["shell", "cmd", "vibrator_manager", "synced", "oneshot", "800"] },
-  { id: "flashlight", labelKey: "diag.check.flashlight", hintKey: "diag.check.flashlightHint" },
-  { id: "speaker", labelKey: "diag.check.speaker", hintKey: "diag.check.speakerHint" },
-  { id: "screenColors", labelKey: "diag.check.screenColors", hintKey: "diag.check.screenColorsHint" },
-  { id: "touch", labelKey: "diag.check.touch", hintKey: "diag.check.touchHint" },
-  { id: "fingerprint", labelKey: "diag.check.fingerprint", hintKey: "diag.check.fingerprintHint" },
+  {
+    id: "vibrate",
+    labelKey: "diag.check.vibrate",
+    hintKey: "diag.check.vibrateHint",
+    trigger: ["shell", "cmd", "vibrator_manager", "synced", "oneshot", "800"],
+  },
+  {
+    id: "flashlight",
+    labelKey: "diag.check.flashlight",
+    hintKey: "diag.check.flashlightHint",
+    // no universal ADB torch toggle; open the camera so the user can tap torch
+    open: { label: "diag.check.openCamera", args: ["shell", "am", "start", "-a", "android.media.action.STILL_IMAGE_CAMERA"] },
+  },
+  {
+    id: "speaker",
+    labelKey: "diag.check.speaker",
+    hintKey: "diag.check.speakerHint",
+    // open the sound settings so the user can play a ringtone/tone
+    open: { label: "diag.check.openSound", args: ["shell", "am", "start", "-a", "android.settings.SOUND_SETTINGS"] },
+  },
+  {
+    id: "screenColors",
+    labelKey: "diag.check.screenColors",
+    hintKey: "diag.check.screenColorsHint",
+    // InjuredPixels fills the screen with solid colors — perfect for dead pixels
+    app: { apk: "injuredpixels", pkg: "com.aurelitec.injuredpixels" },
+    appHint: true,
+  },
+  {
+    id: "touch",
+    labelKey: "diag.check.touch",
+    hintKey: "diag.check.touchHint",
+    // InjuredPixels' full-screen canvas also works for sweeping the touch area
+    app: { apk: "injuredpixels", pkg: "com.aurelitec.injuredpixels" },
+    appHint: true,
+  },
+  {
+    id: "fingerprint",
+    labelKey: "diag.check.fingerprint",
+    hintKey: "diag.check.fingerprintHint",
+    requires: "fingerprint",
+    open: { label: "diag.check.openSecurity", args: ["shell", "am", "start", "-a", "android.settings.SECURITY_SETTINGS"] },
+  },
+  {
+    id: "nfc",
+    labelKey: "diag.check.nfc",
+    hintKey: "diag.check.nfcHint",
+    requires: "nfc",
+    open: { label: "diag.check.openNfc", args: ["shell", "am", "start", "-a", "android.settings.NFC_SETTINGS"] },
+  },
+  {
+    id: "sensors",
+    labelKey: "diag.check.sensors",
+    hintKey: "diag.check.sensorsHint",
+    // developer "Sensors Off" tile lives in dev settings; open dev options as a
+    // starting point. The recommended path is a sensor-test app (below).
+    open: { label: "diag.check.openDev", args: ["shell", "am", "start", "-a", "android.settings.APPLICATION_DEVELOPMENT_SETTINGS"] },
+    appHint: true,
+  },
+];
+
+/**
+ * Recommended FOSS, ad-free hardware-test apps (open-source on GitHub / F-Droid).
+ * We never bundle or auto-download an APK silently — each row opens the app's
+ * page so the user installs it themselves from a source they trust.
+ */
+interface TestApp {
+  name: string;
+  descKey: TKey;
+  /** page to open in the desktop browser */
+  url: string;
+  /** bundled APK short id → enables the one-tap "Install via USB" button */
+  apk?: string;
+}
+const TEST_APPS: TestApp[] = [
+  {
+    name: "Hardware Testing (FOSS)",
+    descKey: "diag.apps.hwtest",
+    url: "https://github.com/rohanagarwal94/Hardware-testing",
+    apk: "hardware-test",
+  },
+  {
+    name: "InjuredPixels",
+    descKey: "diag.apps.injured",
+    url: "https://github.com/aurelitec/injuredpixels-android",
+    apk: "injuredpixels",
+  },
+  {
+    name: "Open Sensor Test",
+    descKey: "diag.apps.sensor",
+    url: "https://github.com/JFMG/Open-Sensor-Test",
+  },
 ];
 
 const DIAG_CODES: { labelKey: TKey; code: string }[] = [
@@ -101,6 +211,7 @@ export function DiagnosticTab() {
   const [mode, setMode] = useState<Mode>("simple");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showLicenses, setShowLicenses] = useState(false);
 
   function guard(): boolean {
     if (!device.connected || device.mode !== "adb") {
@@ -140,7 +251,66 @@ export function DiagnosticTab() {
       }
     } else {
       // no reliable stock trigger — guide the user
-      push(`Manually test ${item.id} on the phone.`, "system");
+      push(t("diag.check.manualHint", { name: t(item.labelKey) }), "system");
+    }
+  }
+
+  // Launch an activity/settings screen on the phone so the user can run the
+  // physical test (camera for torch, NFC settings, sound settings, …).
+  async function openOnPhone(args: string[], label: string) {
+    if (!guard()) return;
+    push(t("diag.check.opening", { what: label }), "system");
+    try {
+      await runCapture("adb", args);
+    } catch (e) {
+      push(String(e), "stderr");
+    }
+  }
+
+  // Open a test-app page in the desktop browser.
+  async function openTestAppPage(url: string) {
+    try {
+      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      await openUrl(url);
+    } catch (e) {
+      push(String(e), "stderr");
+    }
+  }
+
+  // Install a bundled FOSS test APK over USB via adb.
+  const [installing, setInstalling] = useState<string | null>(null);
+
+  // Open an app on the phone for a hardware test; install the bundled APK
+  // first if it isn't present yet. Used by screen/touch checks (InjuredPixels).
+  async function openCheckApp(apk: string, pkg: string) {
+    if (!guard()) return;
+    setInstalling(apk);
+    try {
+      const pkgs = await runCapture("adb", ["shell", "pm", "list", "packages", pkg]);
+      if (!pkgs.includes(pkg)) {
+        push(t("diag.apps.installing", { name: pkg }), "system");
+        await installApk(apk);
+      }
+      // launch the app's launcher activity
+      await runCapture("adb", ["shell", "monkey", "-p", pkg, "-c", "android.intent.category.LAUNCHER", "1"]);
+      push(t("diag.check.appOpened", { pkg }), "system");
+    } catch (e) {
+      push(String(e), "stderr");
+    } finally {
+      setInstalling(null);
+    }
+  }
+  async function installTestApp(apk: string, name: string) {
+    if (!guard()) return;
+    setInstalling(apk);
+    push(t("diag.apps.installing", { name }), "system");
+    try {
+      const out = await installApk(apk);
+      push(t("diag.apps.installed", { name }) + (out ? ` (${out})` : ""), "system");
+    } catch (e) {
+      push(t("diag.apps.installFail", { name }) + `: ${String(e)}`, "stderr");
+    } finally {
+      setInstalling(null);
     }
   }
 
@@ -176,6 +346,7 @@ export function DiagnosticTab() {
   return (
     <>
       <TabHelp>{t("diag.help")}</TabHelp>
+      {showLicenses && <LicenseModal mode="info" onClose={() => setShowLicenses(false)} />}
 
       {/* mode toggle */}
       <div className="mb-3 flex gap-1 rounded-lg bg-[var(--color-surface-2)] p-1">
@@ -218,42 +389,213 @@ export function DiagnosticTab() {
           )}
 
           {/* hardware checklist (both modes) */}
-          <Section title={t("diag.check.title")}>
-            <p className="mb-1 text-[11px] leading-snug text-[var(--color-ink-faint)]">
-              {t("diag.check.intro")}
-            </p>
-            {CHECKS.map((item) => {
-              const st = checks[item.id] ?? "untested";
+          <Section>
+            {(() => {
+              const visible = CHECKS.filter(
+                (item) => !(item.requires && report && !report.sensors.present[item.requires]),
+              );
+              const withAction = visible.filter((i) => i.trigger || i.open || i.app);
+              const manualOnly = visible.filter((i) => !i.trigger && !i.open && !i.app);
+
+              // progress summary across all visible checks
+              const total = visible.length;
+              const nPass = visible.filter((i) => (checks[i.id] ?? "untested") === "pass").length;
+              const nFail = visible.filter((i) => (checks[i.id] ?? "untested") === "fail").length;
+              const nTodo = total - nPass - nFail;
+
+              const StatusButtons = ({ id }: { id: string }) => {
+                const st = checks[id] ?? "untested";
+                return (
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <button
+                      title={t("diag.check.pass")}
+                      onClick={() => setCheck(id, "pass")}
+                      className={`no-drag rounded-md p-1 ${st === "pass" ? "text-emerald-500" : "text-[var(--color-ink-faint)] hover:text-emerald-500"}`}
+                    >
+                      <CheckCircle2 size={16} />
+                    </button>
+                    <button
+                      title={t("diag.check.fail")}
+                      onClick={() => setCheck(id, "fail")}
+                      className={`no-drag rounded-md p-1 ${st === "fail" ? "text-[var(--color-danger)]" : "text-[var(--color-ink-faint)] hover:text-[var(--color-danger)]"}`}
+                    >
+                      <XCircle size={16} />
+                    </button>
+                  </div>
+                );
+              };
+
               return (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5"
-                >
-                  <span className="min-w-0 flex-1" title={t(item.hintKey)}>
-                    <span className="block text-[12px] font-medium text-[var(--color-ink)]">
-                      {t(item.labelKey)}
-                    </span>
-                  </span>
-                  <Button size="sm" title={t(item.hintKey)} onClick={() => runCheck(item)}>
-                    {t("diag.check.run")}
-                  </Button>
-                  <button
-                    title={t("diag.check.pass")}
-                    onClick={() => setCheck(item.id, "pass")}
-                    className={`no-drag rounded-md p-1 ${st === "pass" ? "text-emerald-500" : "text-[var(--color-ink-faint)] hover:text-emerald-500"}`}
-                  >
-                    <CheckCircle2 size={16} />
-                  </button>
-                  <button
-                    title={t("diag.check.fail")}
-                    onClick={() => setCheck(item.id, "fail")}
-                    className={`no-drag rounded-md p-1 ${st === "fail" ? "text-[var(--color-danger)]" : "text-[var(--color-ink-faint)] hover:text-[var(--color-danger)]"}`}
-                  >
-                    <XCircle size={16} />
-                  </button>
+                <div className="space-y-3">
+                  {/* header: title, then a live progress summary on its own row
+                      (stacked so the 330px column never wraps the title) */}
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-brand-600)]">
+                      {t("diag.check.title")}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] font-medium">
+                      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-600">
+                        {t("diag.check.sumOk", { n: nPass, total })}
+                      </span>
+                      <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[var(--color-danger-600)]">
+                        {t("diag.check.sumFail", { n: nFail })}
+                      </span>
+                      <span className="rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[var(--color-ink-faint)]">
+                        {t("diag.check.sumTodo", { n: nTodo })}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] leading-snug text-[var(--color-ink-faint)]">
+                    {t("diag.check.intro")}
+                  </p>
+
+                  {withAction.length > 0 && (
+                    <div>
+                      <div className="mb-1 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+                        {t("diag.check.groupAuto")}
+                      </div>
+                      <div className="space-y-1.5">
+                        {withAction.map((item) => (
+                          <div
+                            key={item.id}
+                            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[12px] font-medium text-[var(--color-ink)]" title={t(item.hintKey)}>
+                                <span className="truncate">{t(item.labelKey)}</span>
+                                {item.appHint && (
+                                  <span className="shrink-0 rounded bg-[var(--color-brand-50)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--color-brand-600)]">
+                                    {t("diag.check.needsApp")}
+                                  </span>
+                                )}
+                              </span>
+                              <StatusButtons id={item.id} />
+                            </div>
+                            <div className="mt-1.5 flex gap-1.5">
+                              {item.trigger && (
+                                <Button size="sm" className="flex-1" title={t(item.hintKey)} onClick={() => runCheck(item)}>
+                                  {t("diag.check.run")}
+                                </Button>
+                              )}
+                              {item.open && (
+                                <Button
+                                  size="sm"
+                                  className="flex-1"
+                                  title={t("diag.check.openHint")}
+                                  onClick={() => openOnPhone(item.open!.args, t(item.open!.label))}
+                                >
+                                  <Smartphone size={13} />
+                                  {t(item.open.label)}
+                                </Button>
+                              )}
+                              {item.app && (
+                                <Button
+                                  size="sm"
+                                  className="flex-1"
+                                  title={t("diag.check.openAppHint")}
+                                  disabled={installing === item.app.apk}
+                                  onClick={() => openCheckApp(item.app!.apk, item.app!.pkg)}
+                                >
+                                  {installing === item.app.apk ? (
+                                    <Loader2 size={13} className="animate-spin" />
+                                  ) : (
+                                    <Package size={13} />
+                                  )}
+                                  {t("diag.check.openApp")}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* group 2: purely manual checks (no button — test on the phone) */}
+                  {manualOnly.length > 0 && (
+                    <div>
+                      <div className="mb-1 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+                        {t("diag.check.groupManual")}
+                      </div>
+                      <div className="space-y-1.5">
+                        {manualOnly.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2"
+                            title={t(item.hintKey)}
+                          >
+                            <span className="min-w-0 flex-1 text-[12px] font-medium text-[var(--color-ink)]">
+                              {t(item.labelKey)}
+                            </span>
+                            <StatusButtons id={item.id} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
-            })}
+            })()}
+          </Section>
+
+          {/* recommended FOSS hardware-test apps (open-source, no ads) */}
+          <Section title={t("diag.apps.title")}>
+            <p className="mb-1 text-[11px] leading-snug text-[var(--color-ink-faint)]">
+              {t("diag.apps.intro")}
+            </p>
+            {TEST_APPS.map((app) => (
+              <div
+                key={app.name}
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2"
+              >
+                {/* name + description stacked, full width */}
+                <div className="flex items-start gap-2">
+                  <Package size={14} className="mt-0.5 shrink-0 text-[var(--color-brand-600)]" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[12px] font-medium text-[var(--color-ink)]">{app.name}</span>
+                    <span className="block text-[10.5px] leading-snug text-[var(--color-ink-faint)]">
+                      {t(app.descKey)}
+                    </span>
+                  </span>
+                </div>
+                {/* buttons: 50:50 when both exist, full width when only "open page" */}
+                <div className="mt-1.5 flex gap-1.5">
+                  {app.apk && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      className="flex-1"
+                      title={t("diag.apps.installHint")}
+                      disabled={installing === app.apk}
+                      onClick={() => installTestApp(app.apk!, app.name)}
+                    >
+                      {installing === app.apk ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        <Download size={13} />
+                      )}
+                      {t("diag.apps.install")}
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    title={t("diag.apps.openHint")}
+                    onClick={() => openTestAppPage(app.url)}
+                  >
+                    <ExternalLink size={13} />
+                    {t("diag.apps.open")}
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <p className="text-[10.5px] leading-snug text-[var(--color-ink-faint)]">
+              {t("diag.apps.note")}
+            </p>
+            <Button size="sm" variant="ghost" className="mt-1" onClick={() => setShowLicenses(true)}>
+              <Scale size={13} />
+              {t("terms.openInfo")}
+            </Button>
           </Section>
 
           {/* built-in diagnostics launcher */}
@@ -473,34 +815,22 @@ function AuthRows({ report }: { report: DiagnosticReport }) {
     ? { v: s.customRom.name, tone: "warn" as Tone }
     : { v: t("diag.auth.rom.stock"), tone: "ok" as Tone };
 
-  const intMap: Record<string, { v: string; tone: Tone }> = {
-    "likely-pass": { v: t("diag.auth.int.pass"), tone: "ok" },
-    "likely-fail": { v: t("diag.auth.int.fail"), tone: "bad" },
+  const tierMap: Record<IntegrityTier, { v: string; tone: Tone }> = {
+    pass: { v: t("diag.auth.int.pass"), tone: "ok" },
+    fail: { v: t("diag.auth.int.fail"), tone: "bad" },
     spoofed: { v: t("diag.auth.int.spoofed"), tone: "warn" },
     unknown: { v: t("diag.auth.int.unknown"), tone: "neutral" },
   };
-  const integ = intMap[s.integrityNote];
+  const ig = s.integrity;
 
-  // detect known root-hiding / integrity-spoofing modules (read-only)
-  const hidingMatch = report.rootModules.filter((m) =>
-    /shamiko|zygisk|susfs|playintegrity|integrityfix|tricky.?store|hma|hide.?my/i.test(
-      `${m.id} ${m.name}`,
-    ),
-  );
-  const hidingNames = Array.from(
-    new Set(
-      hidingMatch.map((m) => {
-        const s2 = `${m.id} ${m.name}`.toLowerCase();
-        if (s2.includes("shamiko")) return "Shamiko";
-        if (s2.includes("susfs")) return "SUSFS";
-        if (s2.includes("zygisk")) return "Zygisk";
-        if (s2.includes("playintegrity") || s2.includes("integrityfix")) return "PIF";
-        if (s2.includes("tricky")) return "TrickyStore";
-        if (s2.includes("hma") || s2.includes("hide")) return "HMA";
-        return m.name;
-      }),
-    ),
-  );
+  // root-hiding: active (named module OR inferred from a too-clean boot state)
+  const hiding = s.rootHiding;
+  const hidingVal =
+    hiding.state === "active"
+      ? hiding.names.length > 0
+        ? t("diag.auth.hiding.active", { list: hiding.names.join(", ") })
+        : t("diag.auth.hiding.inferred")
+      : t("diag.auth.hiding.none");
 
   return (
     <>
@@ -508,16 +838,14 @@ function AuthRows({ report }: { report: DiagnosticReport }) {
       <AuthRow k={t("diag.auth.verifiedBoot")} v={vb.v} tone={vb.tone} />
       <AuthRow k={t("diag.auth.root")} v={root.v} tone={root.tone} />
       <AuthRow k={t("diag.auth.rom")} v={rom.v} tone={rom.tone} />
-      <AuthRow k={t("diag.auth.integrity")} v={integ.v} tone={integ.tone} />
+      <AuthRow k={t("diag.auth.int.basic")} v={tierMap[ig.basic].v} tone={tierMap[ig.basic].tone} />
+      <AuthRow k={t("diag.auth.int.device")} v={tierMap[ig.device].v} tone={tierMap[ig.device].tone} />
+      <AuthRow k={t("diag.auth.int.strong")} v={tierMap[ig.strong].v} tone={tierMap[ig.strong].tone} />
       {report.system.rooted && (
         <AuthRow
           k={t("diag.auth.hiding")}
-          v={
-            hidingNames.length > 0
-              ? t("diag.auth.hiding.active", { list: hidingNames.join(", ") })
-              : t("diag.auth.hiding.none")
-          }
-          tone={hidingNames.length > 0 ? "warn" : "neutral"}
+          v={hidingVal}
+          tone={hiding.state === "active" ? "warn" : "neutral"}
         />
       )}
       <AuthRow
@@ -535,6 +863,112 @@ function AuthRows({ report }: { report: DiagnosticReport }) {
         </p>
       )}
     </>
+  );
+}
+
+/** Identity, firmware age, IMEI & warranty — practical info for used-phone checks. */
+function IdentityCard({ report }: { report: DiagnosticReport }) {
+  const { t } = useI18n();
+  const { push } = useLog();
+  const { device } = useDevice();
+  const s = report.system;
+
+  function guard(): boolean {
+    if (!device.connected || device.mode !== "adb") {
+      push(t("common.connectFirst"), "stderr");
+      return false;
+    }
+    return true;
+  }
+  async function openExternal(url: string) {
+    try {
+      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      await openUrl(url);
+    } catch (e) {
+      push(String(e), "stderr");
+    }
+  }
+  // show IMEI on the phone screen via the universal dial code *#06#
+  function showImeiOnPhone() {
+    if (!guard()) return;
+    push(t("diag.id.imeiDialing"), "system");
+    runCapture("adb", [
+      "shell",
+      "am",
+      "start",
+      "-a",
+      "android.intent.action.DIAL",
+      "-d",
+      "tel:" + encodeURIComponent("*#06#"),
+    ]).catch((e) => push(String(e), "stderr"));
+  }
+
+  // firmware age estimate from the build epoch
+  let ageText = "—";
+  if (s.buildEpoch != null) {
+    const months = Math.max(0, Math.round((Date.now() / 1000 - s.buildEpoch) / (30.44 * 86400)));
+    const years = Math.floor(months / 12);
+    const rem = months % 12;
+    ageText =
+      years > 0
+        ? t("diag.id.ageYM", { y: years, m: rem })
+        : t("diag.id.ageM", { m: months });
+  }
+
+  // brand-specific warranty / IMEI check pages
+  const brand = (report.system.props.get("ro.product.brand") || report.system.props.get("ro.product.manufacturer") || "").toLowerCase();
+  const warranty: { label: string; url: string } =
+    brand.includes("samsung")
+      ? { label: "Samsung", url: "https://www.samsung.com/us/support/warranty/" }
+      : brand.includes("xiaomi") || brand.includes("redmi") || brand.includes("poco")
+        ? { label: "Xiaomi", url: "https://www.mi.com/global/verify/" }
+        : brand.includes("oppo")
+          ? { label: "OPPO", url: "https://support.oppo.com/en/warranty-check/" }
+          : brand.includes("vivo")
+            ? { label: "vivo", url: "https://www.vivo.com/en/support/warranty" }
+            : brand.includes("realme")
+              ? { label: "realme", url: "https://www.realme.com/support/phonecheck" }
+              : brand.includes("oneplus")
+                ? { label: "OnePlus", url: "https://www.oneplus.com/support/warranty-check" }
+                : { label: "", url: "" };
+
+  return (
+    <Card icon={BadgeCheck} title={t("diag.card.identity")}>
+      <KV k={t("diag.id.serial")} v={s.serialNo} />
+      <KV k={t("diag.id.imei")} v={s.imei || t("diag.id.imeiUnknown")} />
+      <KV k={t("diag.id.buildDate")} v={s.buildDate} />
+      <KV k={t("diag.id.fwAge")} v={ageText} />
+
+      <div className="mt-2 flex flex-col gap-1.5">
+        <Button size="sm" className="w-full" title={t("diag.id.showImeiHint")} onClick={showImeiOnPhone}>
+          <Smartphone size={13} />
+          {t("diag.id.showImei")}
+        </Button>
+        <Button
+          size="sm"
+          className="w-full"
+          title={t("diag.id.checkImeiHint")}
+          onClick={() => openExternal(s.imei ? `https://www.imei.info/?imei=${s.imei}` : "https://www.imei.info/")}
+        >
+          <ExternalLink size={13} />
+          {t("diag.id.checkImei")}
+        </Button>
+        {warranty.url && (
+          <Button
+            size="sm"
+            className="w-full"
+            title={t("diag.id.checkWarrantyHint")}
+            onClick={() => openExternal(warranty.url)}
+          >
+            <ExternalLink size={13} />
+            {t("diag.id.checkWarranty", { brand: warranty.label })}
+          </Button>
+        )}
+      </div>
+      <p className="mt-1.5 text-[10px] leading-snug text-[var(--color-ink-faint)]">
+        {t("diag.id.note")}
+      </p>
+    </Card>
   );
 }
 
@@ -579,6 +1013,8 @@ function SimpleView({ report }: { report: DiagnosticReport }) {
         <AuthRows report={report} />
         <p className="mt-1 text-[10.5px] leading-snug text-[var(--color-ink-faint)]">{t("diag.auth.h")}</p>
       </Card>
+
+      <IdentityCard report={report} />
 
       <Card icon={Smartphone} title={t("diag.card.screen")}>
         <KV k={t("diag.scr.resolution")} v={report.screen.resolution} />

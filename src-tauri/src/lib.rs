@@ -23,6 +23,7 @@ pub fn run() {
             runner::run_capture,
             runner::cancel_command,
             runner::check_tools,
+            runner::install_apk,
             device::detect_device,
             device::list_devices,
             debloat::load_debloat_db,

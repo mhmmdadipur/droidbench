@@ -13,6 +13,22 @@ const en = {
   "common.copied": "Copied!",
   "common.on": "ON",
   "common.off": "OFF",
+  "common.close": "Close",
+
+  // terms & third-party license notices
+  "terms.title": "Terms & Open-Source Notices",
+  "terms.intro":
+    "Droidbench is a free tool for managing, testing & flashing Android devices over USB. Use it only on devices you own or are authorized to service. You are responsible for how you use it.",
+  "terms.bundledTitle": "Bundled open-source software",
+  "terms.bundledIntro":
+    "Droidbench bundles these open-source apps/tools, redistributed unmodified under their own licenses. Tap a name to open its source page.",
+  "terms.disclaimer":
+    "These apps and tools are the property of their respective authors; Droidbench is not affiliated with or endorsed by them. They are provided AS IS, without warranty.",
+  "terms.noticeFile":
+    "Full license texts ship with the app in licenses/THIRD-PARTY-LICENSES.txt (Apache-2.0 & MIT).",
+  "terms.ackHint": "By continuing you agree to the above.",
+  "terms.accept": "I Understand & Agree",
+  "terms.openInfo": "Licenses & Terms",
   "common.block": "Block",
   "common.restore": "Restore",
   "common.enable": "Enable",
@@ -50,6 +66,7 @@ const en = {
   "bottom.restartHint": "Restart the ADB connection if the phone isn't detected / errors out.",
   "bottom.help": "Connection Help",
   "bottom.helpHint": "Guide on how to connect a phone (USB debugging, etc.).",
+  "bottom.termsHint": "Terms of use & open-source license notices.",
   // ── setup wizard (shown when no ready device) ──
   "setup.title": "Let's connect your phone",
   "setup.toolsOk": "Built-in tools ready (adb/fastboot/scrcpy bundled — nothing to install).",
@@ -361,12 +378,15 @@ const en = {
   "diag.auth.rom": "ROM",
   "diag.auth.rom.stock": "Stock / official",
   "diag.auth.integrity": "Play Integrity",
+  "diag.auth.int.basic": "Integrity BASIC",
+  "diag.auth.int.device": "Integrity DEVICE",
+  "diag.auth.int.strong": "Integrity STRONG",
   "diag.auth.int.pass": "Likely pass",
   "diag.auth.int.fail": "Likely fail",
-  "diag.auth.int.spoofed": "Spoofed (module installed)",
+  "diag.auth.int.spoofed": "Spoofed (concealed)",
   "diag.auth.int.unknown": "Unknown",
   "diag.auth.int.note":
-    "The real Play Integrity verdict can only be measured by an app that calls Google's API. This is an estimate from boot state + installed modules.",
+    "Estimate of Google's three Play Integrity tiers (BASIC / DEVICE / STRONG). STRONG uses hardware attestation and cannot be faked by a module — so a rooted or once-unlocked phone fails STRONG even when BASIC/DEVICE are concealed. The real verdict can only come from an app calling Google's API.",
   "diag.auth.selinux": "SELinux",
   "diag.auth.tags": "Build Tags",
   "diag.auth.spoofWarn":
@@ -374,6 +394,7 @@ const en = {
   "diag.auth.hiding": "Root Hiding",
   "diag.auth.hiding.none": "None detected",
   "diag.auth.hiding.active": "Active ({list})",
+  "diag.auth.hiding.inferred": "Active (inferred from clean boot state)",
   "diag.auth.hiding.h": "Modules that hide root / spoof integrity (Zygisk, Shamiko, SUSFS, Play Integrity Fix, Tricky Store). Read-only detection — useful when testing anti-tamper. Droidbench only reports what's visible.",
 
   // sensors
@@ -399,6 +420,42 @@ const en = {
   "diag.check.fail": "Problem",
   "diag.check.untested": "Not tested",
   "diag.check.run": "Test",
+  "diag.check.groupAuto": "Guided tests (buttons help you)",
+  "diag.check.groupManual": "Manual tests (do it on the phone)",
+  "diag.check.sumOk": "{n}/{total} OK",
+  "diag.check.sumFail": "{n} problem",
+  "diag.check.sumTodo": "{n} to do",
+  "diag.check.needsApp": "needs app",
+
+  // identity, firmware age, IMEI & warranty
+  "diag.card.identity": "Identity, Age & Warranty",
+  "diag.id.serial": "Serial number",
+  "diag.id.imei": "IMEI",
+  "diag.id.imeiUnknown": "Not readable over USB",
+  "diag.id.buildDate": "Firmware build date",
+  "diag.id.fwAge": "Firmware age (approx.)",
+  "diag.id.ageYM": "~{y}y {m}mo old",
+  "diag.id.ageM": "~{m} months old",
+  "diag.id.showImei": "Show IMEI on phone",
+  "diag.id.showImeiHint": "Dials *#06# on the phone so the IMEI shows on its screen.",
+  "diag.id.imeiDialing": "Opening *#06# on the phone to show the IMEI…",
+  "diag.id.checkImei": "Check IMEI online",
+  "diag.id.checkImeiHint": "Open imei.info to verify the IMEI (model, blacklist status, etc.).",
+  "diag.id.checkWarranty": "Check warranty ({brand})",
+  "diag.id.checkWarrantyHint": "Open the maker's official warranty/IMEI check page.",
+  "diag.id.note":
+    "Phones don't expose a manufacture year or warranty status over USB. Firmware age is an estimate from the build date; verify IMEI & warranty on the maker's site using the serial/IMEI.",
+  "diag.check.manualHint": "Manually test {name} on the phone, then mark OK or Problem.",
+  "diag.check.opening": "Opening {what} on the phone…",
+  "diag.check.openHint": "Open the matching screen/app on the phone so you can run the test.",
+  "diag.check.openCamera": "Open Camera",
+  "diag.check.openSound": "Open Sound",
+  "diag.check.openSecurity": "Open Security",
+  "diag.check.openNfc": "Open NFC",
+  "diag.check.openDev": "Open Dev options",
+  "diag.check.openApp": "Open app",
+  "diag.check.openAppHint": "Open InjuredPixels on the phone (installs it first if needed) to run this test full-screen.",
+  "diag.check.appOpened": "Opened {pkg} on the phone.",
   "diag.check.vibrate": "Vibration",
   "diag.check.vibrateHint": "Buzz the phone's vibration motor. Feel it in your hand.",
   "diag.check.speaker": "Speaker",
@@ -411,6 +468,27 @@ const en = {
   "diag.check.flashlightHint": "Turn the camera flash on. Check it lights up.",
   "diag.check.fingerprint": "Fingerprint Reader",
   "diag.check.fingerprintHint": "Open fingerprint settings on the phone and try the sensor.",
+  "diag.check.nfc": "NFC",
+  "diag.check.nfcHint": "Open the NFC settings screen and tap an NFC tag/card to confirm it reads.",
+  "diag.check.sensors": "Sensors (live)",
+  "diag.check.sensorsHint": "Accelerometer, gyroscope, compass, proximity & light can't be read live over USB — use a sensor-test app below to see live values.",
+
+  // recommended FOSS hardware-test apps
+  "diag.apps.title": "Hardware Test Apps (optional)",
+  "diag.apps.intro":
+    "For live tests ADB can't do (speaker tone, dead-pixel scan, live sensor values), use a free open-source app on the phone. Bundled apps install over USB in one tap; the rest open their source page.",
+  "diag.apps.open": "Open page",
+  "diag.apps.openHint": "Open the app's source page in your browser to download/install it.",
+  "diag.apps.install": "Install",
+  "diag.apps.installHint": "Install this bundled app onto the connected phone over USB.",
+  "diag.apps.installing": "Installing {name} over USB…",
+  "diag.apps.installed": "{name} installed on the phone.",
+  "diag.apps.installFail": "Failed to install {name}",
+  "diag.apps.hwtest": "All-in-one: sensors, speaker, vibration, touch, flashlight, NFC & more.",
+  "diag.apps.injured": "Full-screen solid colors to find dead/stuck pixels & screen spots.",
+  "diag.apps.sensor": "Shows live values from every sensor (accel, gyro, compass, light…).",
+  "diag.apps.note":
+    "Bundled apps (Hardware Testing, InjuredPixels) are open-source and ship inside Droidbench; others open a page so you install them yourself.",
 
   // built-in diagnostics launcher
   "diag.builtin.title": "Open the Phone's Built-in Diagnostics",

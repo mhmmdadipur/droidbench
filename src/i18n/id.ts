@@ -11,6 +11,22 @@ const id: Dict = {
   "common.copied": "Tersalin!",
   "common.on": "ON",
   "common.off": "OFF",
+  "common.close": "Tutup",
+
+  // ketentuan & lisensi pihak ketiga
+  "terms.title": "Ketentuan & Lisensi Open-Source",
+  "terms.intro":
+    "Droidbench adalah alat gratis untuk mengelola, menguji & flashing HP Android via USB. Gunakan hanya pada perangkat milikmu atau yang kamu berwenang menanganinya. Kamu bertanggung jawab atas penggunaannya.",
+  "terms.bundledTitle": "Perangkat lunak open-source yang dibundel",
+  "terms.bundledIntro":
+    "Droidbench membundel aplikasi/alat open-source berikut, didistribusikan apa adanya sesuai lisensinya masing-masing. Ketuk nama untuk membuka halaman sumbernya.",
+  "terms.disclaimer":
+    "Aplikasi dan alat ini milik pembuatnya masing-masing; Droidbench tidak berafiliasi dengan maupun didukung oleh mereka. Disediakan APA ADANYA, tanpa jaminan.",
+  "terms.noticeFile":
+    "Teks lisensi lengkap ikut dibundel di licenses/THIRD-PARTY-LICENSES.txt (Apache-2.0 & MIT).",
+  "terms.ackHint": "Dengan melanjutkan, kamu menyetujui hal di atas.",
+  "terms.accept": "Saya Paham & Setuju",
+  "terms.openInfo": "Lisensi & Ketentuan",
   "common.block": "Blokir",
   "common.restore": "Pulihkan",
   "common.enable": "Aktifkan",
@@ -48,6 +64,7 @@ const id: Dict = {
   "bottom.restartHint": "Mulai ulang koneksi ADB jika HP tidak terdeteksi / error.",
   "bottom.help": "Bantuan Koneksi",
   "bottom.helpHint": "Panduan cara menyambungkan HP (USB debugging, dll).",
+  "bottom.termsHint": "Ketentuan penggunaan & lisensi open-source.",
   // ── wizard setup (muncul saat belum ada device siap) ──
   "setup.title": "Ayo sambungkan HP-mu",
   "setup.toolsOk": "Alat bawaan siap (adb/fastboot/scrcpy sudah include — tak perlu install).",
@@ -359,12 +376,15 @@ const id: Dict = {
   "diag.auth.rom": "ROM",
   "diag.auth.rom.stock": "Bawaan / resmi",
   "diag.auth.integrity": "Play Integrity",
+  "diag.auth.int.basic": "Integrity BASIC",
+  "diag.auth.int.device": "Integrity DEVICE",
+  "diag.auth.int.strong": "Integrity STRONG",
   "diag.auth.int.pass": "Kemungkinan lolos",
   "diag.auth.int.fail": "Kemungkinan gagal",
-  "diag.auth.int.spoofed": "Dipalsukan (ada modul)",
+  "diag.auth.int.spoofed": "Dipalsukan (disembunyikan)",
   "diag.auth.int.unknown": "Tidak diketahui",
   "diag.auth.int.note":
-    "Verdict Play Integrity sebenarnya hanya bisa diukur oleh aplikasi yang memanggil API Google. Ini perkiraan dari status boot + modul terpasang.",
+    "Perkiraan tiga tingkat Play Integrity dari Google (BASIC / DEVICE / STRONG). STRONG memakai atestasi perangkat keras dan tidak bisa dipalsukan modul — jadi HP yang di-root atau pernah dibuka bootloader-nya tetap GAGAL di STRONG walau BASIC/DEVICE berhasil disembunyikan. Verdict asli hanya bisa diukur aplikasi yang memanggil API Google.",
   "diag.auth.selinux": "SELinux",
   "diag.auth.tags": "Tag Build",
   "diag.auth.spoofWarn":
@@ -372,6 +392,7 @@ const id: Dict = {
   "diag.auth.hiding": "Penyembunyian Root",
   "diag.auth.hiding.none": "Tidak terdeteksi",
   "diag.auth.hiding.active": "Aktif ({list})",
+  "diag.auth.hiding.inferred": "Aktif (disimpulkan dari status boot yang bersih)",
   "diag.auth.hiding.h": "Modul yang menyembunyikan root / memalsukan integrity (Zygisk, Shamiko, SUSFS, Play Integrity Fix, Tricky Store). Deteksi hanya-baca — berguna saat menguji anti-tamper. Droidbench hanya melaporkan yang terlihat.",
 
   // sensor
@@ -397,6 +418,42 @@ const id: Dict = {
   "diag.check.fail": "Bermasalah",
   "diag.check.untested": "Belum dites",
   "diag.check.run": "Tes",
+  "diag.check.groupAuto": "Tes terpandu (ada tombol bantu)",
+  "diag.check.groupManual": "Tes manual (lakukan di HP)",
+  "diag.check.sumOk": "{n}/{total} OK",
+  "diag.check.sumFail": "{n} bermasalah",
+  "diag.check.sumTodo": "{n} belum",
+  "diag.check.needsApp": "butuh app",
+
+  // identitas, umur firmware, IMEI & garansi
+  "diag.card.identity": "Identitas, Umur & Garansi",
+  "diag.id.serial": "Nomor seri",
+  "diag.id.imei": "IMEI",
+  "diag.id.imeiUnknown": "Tak terbaca lewat USB",
+  "diag.id.buildDate": "Tanggal build firmware",
+  "diag.id.fwAge": "Umur firmware (perkiraan)",
+  "diag.id.ageYM": "~{y}th {m}bln",
+  "diag.id.ageM": "~{m} bulan",
+  "diag.id.showImei": "Tampilkan IMEI di HP",
+  "diag.id.showImeiHint": "Memanggil *#06# di HP agar IMEI muncul di layarnya.",
+  "diag.id.imeiDialing": "Membuka *#06# di HP untuk menampilkan IMEI…",
+  "diag.id.checkImei": "Cek IMEI online",
+  "diag.id.checkImeiHint": "Buka imei.info untuk memverifikasi IMEI (model, status blacklist, dll).",
+  "diag.id.checkWarranty": "Cek garansi ({brand})",
+  "diag.id.checkWarrantyHint": "Buka halaman cek garansi/IMEI resmi pabrikan.",
+  "diag.id.note":
+    "HP tidak membuka tahun produksi atau status garansi lewat USB. Umur firmware adalah perkiraan dari tanggal build; verifikasi IMEI & garansi di situs pabrikan memakai nomor seri/IMEI.",
+  "diag.check.manualHint": "Tes {name} secara manual di HP, lalu tandai OK atau Bermasalah.",
+  "diag.check.opening": "Membuka {what} di HP…",
+  "diag.check.openHint": "Buka layar/aplikasi terkait di HP agar bisa kamu tes.",
+  "diag.check.openCamera": "Buka Kamera",
+  "diag.check.openSound": "Buka Suara",
+  "diag.check.openSecurity": "Buka Keamanan",
+  "diag.check.openNfc": "Buka NFC",
+  "diag.check.openDev": "Buka Opsi Pengembang",
+  "diag.check.openApp": "Buka app",
+  "diag.check.openAppHint": "Buka InjuredPixels di HP (pasang dulu jika perlu) untuk tes layar penuh.",
+  "diag.check.appOpened": "Membuka {pkg} di HP.",
   "diag.check.vibrate": "Getaran",
   "diag.check.vibrateHint": "Getarkan motor getar HP. Rasakan di tangan.",
   "diag.check.speaker": "Speaker",
@@ -409,6 +466,27 @@ const id: Dict = {
   "diag.check.flashlightHint": "Nyalakan lampu flash kamera. Pastikan menyala.",
   "diag.check.fingerprint": "Pemindai Sidik Jari",
   "diag.check.fingerprintHint": "Buka pengaturan sidik jari di HP lalu coba sensornya.",
+  "diag.check.nfc": "NFC",
+  "diag.check.nfcHint": "Buka layar pengaturan NFC lalu tempelkan tag/kartu NFC untuk memastikan terbaca.",
+  "diag.check.sensors": "Sensor (langsung)",
+  "diag.check.sensorsHint": "Akselerometer, giroskop, kompas, proximity & cahaya tidak bisa dibaca langsung lewat USB — pakai aplikasi tes sensor di bawah untuk melihat nilai langsung.",
+
+  // rekomendasi aplikasi tes hardware (open-source)
+  "diag.apps.title": "Aplikasi Tes Hardware (opsional)",
+  "diag.apps.intro":
+    "Untuk tes langsung yang tak bisa dilakukan ADB (nada speaker, pindai dead-pixel, nilai sensor langsung), pakai aplikasi open-source gratis di HP. Aplikasi yang dibundel bisa dipasang via USB sekali klik; sisanya membuka halaman sumbernya.",
+  "diag.apps.open": "Buka halaman",
+  "diag.apps.openHint": "Buka halaman sumber aplikasi di browser untuk mengunduh/memasangnya.",
+  "diag.apps.install": "Pasang",
+  "diag.apps.installHint": "Pasang aplikasi bawaan ini ke HP yang tersambung lewat USB.",
+  "diag.apps.installing": "Memasang {name} lewat USB…",
+  "diag.apps.installed": "{name} terpasang di HP.",
+  "diag.apps.installFail": "Gagal memasang {name}",
+  "diag.apps.hwtest": "Serba-ada: sensor, speaker, getar, sentuh, senter, NFC & lainnya.",
+  "diag.apps.injured": "Warna solid layar penuh untuk cari dead/stuck pixel & noda layar.",
+  "diag.apps.sensor": "Menampilkan nilai langsung tiap sensor (akselerometer, giro, kompas, cahaya…).",
+  "diag.apps.note":
+    "Aplikasi bawaan (Hardware Testing, InjuredPixels) bersifat open-source dan ikut dibundel di Droidbench; lainnya membuka halaman agar kamu pasang sendiri.",
 
   // peluncur diagnostik bawaan
   "diag.builtin.title": "Buka Diagnostik Bawaan HP",

@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   ScrollText,
   Wrench,
+  Scale,
 } from "lucide-react";
 import { TitleBar } from "./components/TitleBar";
 import { DeviceStatus } from "./components/DeviceStatus";
@@ -40,6 +41,7 @@ import { DiagnosticProvider } from "./state/diagnostic";
 import { ConnectivityProvider } from "./state/connectivity";
 import { AppManagerProvider } from "./state/appmanager";
 import { I18nProvider, useI18n, type TKey } from "./i18n";
+import { LicenseModal, hasAcceptedTerms } from "./components/LicenseModal";
 
 type TabId =
   | "adb"
@@ -101,6 +103,7 @@ function TabContent({ tab }: { tab: TabId }) {
 function BottomToolbar() {
   const { push, run } = useLog();
   const { t } = useI18n();
+  const [showTerms, setShowTerms] = useState(false);
 
   async function openFiles() {
     push("Menampilkan isi penyimpanan HP (/sdcard)…", "system");
@@ -141,11 +144,22 @@ function BottomToolbar() {
   );
 
   return (
-    <div className="flex gap-1.5">
-      {item(t("bottom.files"), t("bottom.filesHint"), FolderOpen, openFiles)}
-      {item(t("bottom.check"), t("bottom.checkHint"), Smartphone, listDevices)}
-      {item(t("bottom.restart"), t("bottom.restartHint"), RefreshCw, restartConnection)}
-      {item(t("bottom.help"), t("bottom.helpHint"), HelpCircle, connectionHelp)}
+    <div className="space-y-1.5">
+      <div className="flex gap-1.5">
+        {item(t("bottom.files"), t("bottom.filesHint"), FolderOpen, openFiles)}
+        {item(t("bottom.check"), t("bottom.checkHint"), Smartphone, listDevices)}
+        {item(t("bottom.restart"), t("bottom.restartHint"), RefreshCw, restartConnection)}
+        {item(t("bottom.help"), t("bottom.helpHint"), HelpCircle, connectionHelp)}
+      </div>
+      <button
+        onClick={() => setShowTerms(true)}
+        title={t("bottom.termsHint")}
+        className="no-drag flex w-full items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-[11px] font-medium text-[var(--color-ink-soft)] transition-colors hover:border-[var(--color-brand)] hover:text-[var(--color-brand-600)]"
+      >
+        <Scale size={13} className="shrink-0" />
+        {t("terms.openInfo")}
+      </button>
+      {showTerms && <LicenseModal mode="info" onClose={() => setShowTerms(false)} />}
     </div>
   );
 }
@@ -155,6 +169,8 @@ function Shell() {
   const [group, setGroup] = useState<TabGroup>("device");
   const { t } = useI18n();
   const { device } = useDevice();
+  // first-run terms / third-party notices popup (shown once)
+  const [showTerms, setShowTerms] = useState(() => !hasAcceptedTerms());
   const activeTab = TABS.find((t) => t.id === tab);
   const groupTabs = TABS.filter((tb) => tb.group === group);
   const activeGroup = GROUPS.find((g) => g.id === group);
@@ -195,6 +211,7 @@ function Shell() {
   return (
     <div className="flex h-screen flex-col bg-[var(--color-bg)]">
       <TitleBar />
+      {showTerms && <LicenseModal mode="firstRun" onClose={() => setShowTerms(false)} />}
 
       <div className="flex min-h-0 flex-1 gap-3 p-3">
         {/* COLUMN 1 — status + navigation */}

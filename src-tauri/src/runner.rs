@@ -496,6 +496,49 @@ pub async fn run_capture_internal(
     Ok(combined)
 }
 
+/// Install a bundled FOSS hardware-test APK onto the connected device.
+/// `which` selects the APK by a short id so the frontend never passes a path.
+#[tauri::command]
+pub async fn install_apk(app: AppHandle, which: String) -> Result<String, String> {
+    // map the short id → bundled resource file (whitelist; no arbitrary paths)
+    let rel = match which.as_str() {
+        "injuredpixels" => "binaries/injuredpixels.apk",
+        "hardware-test" => "binaries/hardware-test.apk",
+        other => return Err(format!("unknown apk id: {other}")),
+    };
+    let apk = resolve_resource(&app, rel)
+        .ok_or_else(|| format!("bundled APK not found: {rel}"))?;
+
+    let adb = resolve_tool(&app, "adb");
+    let mut cmd = Command::new(&adb);
+    cmd.args(["install", "-r", &apk])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .stdin(Stdio::null());
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = cmd
+        .output()
+        .await
+        .map_err(|e| format!("failed to run adb install: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{stdout}{stderr}");
+    // adb prints "Success" on a successful install; treat anything else as error
+    if combined.contains("Success") {
+        Ok(combined.trim().to_string())
+    } else {
+        Err(combined.trim().to_string())
+    }
+}
+
 /// Cancel a running command by id, or all if id is None.
 #[tauri::command]
 pub async fn cancel_command(
