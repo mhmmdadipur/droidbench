@@ -1,6 +1,6 @@
-import { useEffect } from "react";
-import { Scale, X } from "lucide-react";
+import { Scale } from "lucide-react";
 import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 import { useI18n } from "../i18n";
 
 const ACK_KEY = "droidbench.terms.ack.v1";
@@ -75,93 +75,66 @@ export function LicenseModal({
 }) {
   const { t } = useI18n();
 
-  // lock background scroll while open
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
   function accept() {
     setAccepted();
     onClose();
   }
 
+  const footer =
+    mode === "firstRun" ? (
+      <>
+        <span className="flex-1 text-[11px] text-[var(--color-ink-faint)]">{t("terms.ackHint")}</span>
+        <Button variant="primary" size="sm" onClick={accept}>
+          {t("terms.accept")}
+        </Button>
+      </>
+    ) : (
+      <Button variant="default" size="sm" className="ml-auto" onClick={onClose}>
+        {t("common.close")}
+      </Button>
+    );
+
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl">
-        {/* header */}
-        <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
-          <Scale size={16} className="text-[var(--color-brand-600)]" />
-          <span className="text-[13px] font-semibold text-[var(--color-ink)]">
-            {t("terms.title")}
-          </span>
-          {mode === "info" && (
-            <button
-              onClick={onClose}
-              title={t("common.close")}
-              className="no-drag ml-auto flex h-6 w-6 items-center justify-center rounded-md text-[var(--color-ink-faint)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]"
-            >
-              <X size={15} />
-            </button>
-          )}
-        </div>
+    <Modal
+      icon={Scale}
+      title={t("terms.title")}
+      dismissable={mode === "info"}
+      onClose={onClose}
+      footer={footer}
+    >
+      <div className="space-y-3 text-[12px] leading-relaxed text-[var(--color-ink-soft)]">
+        <p>{t("terms.intro")}</p>
 
-        {/* body */}
-        <div className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-3 text-[12px] leading-relaxed text-[var(--color-ink-soft)]">
-          <p>{t("terms.intro")}</p>
-
-          <div>
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
-              {t("terms.bundledTitle")}
-            </div>
-            <p className="mb-2 text-[11.5px]">{t("terms.bundledIntro")}</p>
-            <div className="overflow-hidden rounded-lg border border-[var(--color-border)]">
-              {BUNDLED.map((b, i) => (
-                <div
-                  key={b.name}
-                  className={`flex items-start gap-2 px-3 py-2 ${i % 2 ? "bg-[var(--color-bg)]" : "bg-[var(--color-surface)]"}`}
-                >
-                  <span className="min-w-0 flex-1">
-                    <button
-                      onClick={() => openExternal(b.url)}
-                      className="no-drag block text-left text-[12px] font-medium text-[var(--color-brand-600)] hover:underline"
-                    >
-                      {b.name}
-                    </button>
-                    <span className="block text-[11px] text-[var(--color-ink-faint)]">
-                      {b.author} · {b.license}
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
+        <div>
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+            {t("terms.bundledTitle")}
           </div>
-
-          <p className="text-[11.5px]">{t("terms.disclaimer")}</p>
-          <p className="text-[11px] text-[var(--color-ink-faint)]">{t("terms.noticeFile")}</p>
+          <p className="mb-2 text-[11.5px]">{t("terms.bundledIntro")}</p>
+          <div className="overflow-hidden rounded-lg border border-[var(--color-border)]">
+            {BUNDLED.map((b, i) => (
+              <div
+                key={b.name}
+                className={`flex items-start gap-2 px-3 py-2 ${i % 2 ? "bg-[var(--color-bg)]" : "bg-[var(--color-surface)]"}`}
+              >
+                <span className="min-w-0 flex-1">
+                  <button
+                    onClick={() => openExternal(b.url)}
+                    className="no-drag block text-left text-[12px] font-medium text-[var(--color-brand-600)] hover:underline"
+                  >
+                    {b.name}
+                  </button>
+                  <span className="block text-[11px] text-[var(--color-ink-faint)]">
+                    {b.author} · {b.license}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* footer */}
-        <div className="flex items-center gap-2 border-t border-[var(--color-border)] px-4 py-3">
-          {mode === "firstRun" ? (
-            <>
-              <span className="flex-1 text-[11px] text-[var(--color-ink-faint)]">
-                {t("terms.ackHint")}
-              </span>
-              <Button variant="primary" size="sm" onClick={accept}>
-                {t("terms.accept")}
-              </Button>
-            </>
-          ) : (
-            <Button variant="default" size="sm" className="ml-auto" onClick={onClose}>
-              {t("common.close")}
-            </Button>
-          )}
-        </div>
+        <p className="text-[11.5px]">{t("terms.disclaimer")}</p>
+        <p className="text-[11px] text-[var(--color-ink-faint)]">{t("terms.noticeFile")}</p>
       </div>
-    </div>
+    </Modal>
   );
 }

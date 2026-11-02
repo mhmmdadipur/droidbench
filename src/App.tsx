@@ -42,6 +42,7 @@ import { ConnectivityProvider } from "./state/connectivity";
 import { AppManagerProvider } from "./state/appmanager";
 import { I18nProvider, useI18n, type TKey } from "./i18n";
 import { LicenseModal, hasAcceptedTerms } from "./components/LicenseModal";
+import { Modal } from "./components/ui/Modal";
 
 type TabId =
   | "adb"
@@ -174,31 +175,14 @@ function Shell() {
   const activeTab = TABS.find((t) => t.id === tab);
   const groupTabs = TABS.filter((tb) => tb.group === group);
   const activeGroup = GROUPS.find((g) => g.id === group);
-  // Pop the connection-guide window whenever there's no ready adb device. It
-  // lives in its own window so the main UI stays fully clickable, and it closes
-  // itself once a phone is ready.
+  // Connection guide is an in-app modal (same style as the Terms popup). It
+  // auto-opens whenever there's no ready adb device, and closes itself once a
+  // phone is ready. The user can also dismiss it and reopen via the banner.
   const needsSetup = !(device.connected && device.mode === "adb");
+  const [showSetup, setShowSetup] = useState(false);
   useEffect(() => {
-    if (!needsSetup) return;
-    let cancelled = false;
-    (async () => {
-      const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-      const existing = await WebviewWindow.getByLabel("setup");
-      if (existing || cancelled) return;
-      new WebviewWindow("setup", {
-        url: "index.html?view=setup",
-        title: "Droidbench — Connect",
-        width: 460,
-        height: 640,
-        resizable: true,
-        decorations: false,
-        shadow: true,
-        transparent: true,
-      });
-    })();
-    return () => {
-      cancelled = true;
-    };
+    if (needsSetup) setShowSetup(true);
+    else setShowSetup(false);
   }, [needsSetup]);
 
   function switchGroup(g: TabGroup) {
@@ -212,6 +196,16 @@ function Shell() {
     <div className="flex h-screen flex-col bg-[var(--color-bg)]">
       <TitleBar />
       {showTerms && <LicenseModal mode="firstRun" onClose={() => setShowTerms(false)} />}
+      {showSetup && (
+        <Modal
+          icon={Smartphone}
+          title={t("setup.title")}
+          onClose={() => setShowSetup(false)}
+          maxWidth="max-w-md"
+        >
+          <SetupWizard onReady={() => setShowSetup(false)} />
+        </Modal>
+      )}
 
       <div className="flex min-h-0 flex-1 gap-3 p-3">
         {/* COLUMN 1 — status + navigation */}
@@ -298,7 +292,7 @@ function Shell() {
             </span>
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-4">
-            {needsSetup && <ConnectBanner />}
+            {needsSetup && <ConnectBanner onOpen={() => setShowSetup(true)} />}
             <TabContent tab={tab} />
           </div>
         </div>
@@ -317,30 +311,12 @@ function RightPanel() {
 }
 
 /** Small inline banner at the top of the content column when no device is
- * ready — with a button to (re)open the connection guide window. */
-function ConnectBanner() {
+ * ready — with a button to (re)open the connection guide modal. */
+function ConnectBanner({ onOpen }: { onOpen: () => void }) {
   const { t } = useI18n();
-  async function openGuide() {
-    const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-    const existing = await WebviewWindow.getByLabel("setup");
-    if (existing) {
-      existing.setFocus();
-      return;
-    }
-    new WebviewWindow("setup", {
-      url: "index.html?view=setup",
-      title: "Droidbench — Connect",
-      width: 460,
-      height: 640,
-      resizable: true,
-      decorations: false,
-      shadow: true,
-      transparent: true,
-    });
-  }
   return (
     <button
-      onClick={openGuide}
+      onClick={onOpen}
       className="no-drag mb-3 flex w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-[11.5px] leading-snug text-amber-800 transition-colors hover:bg-amber-100"
     >
       <Smartphone size={15} className="shrink-0" />

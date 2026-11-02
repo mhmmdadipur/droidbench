@@ -43,7 +43,7 @@ function guessOs(rom: string, brand: string): OsId {
  * state and closes itself the moment a single ready adb device appears, so the
  * main window stays fully usable underneath.
  */
-export function SetupWizard({ inWindow = false }: { inWindow?: boolean }) {
+export function SetupWizard({ inWindow = false, onReady }: { inWindow?: boolean; onReady?: () => void }) {
   const { device, refresh, refreshing } = useDevice();
   const { tools } = useTools2();
   const { run, push } = useLog();
@@ -73,16 +73,20 @@ export function SetupWizard({ inWindow = false }: { inWindow?: boolean }) {
 
   const multi = list.length > 1;
 
-  // when running as a standalone window, close once exactly one ready device
+  // close once exactly one ready device appears — either by closing our own
+  // window (standalone mode) or signalling the parent modal to dismiss.
   useEffect(() => {
-    if (!inWindow) return;
     if (device.connected && device.mode === "adb" && !multi) {
-      (async () => {
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
-        getCurrentWindow().close();
-      })();
+      if (inWindow) {
+        (async () => {
+          const { getCurrentWindow } = await import("@tauri-apps/api/window");
+          getCurrentWindow().close();
+        })();
+      } else {
+        onReady?.();
+      }
     }
-  }, [inWindow, device.connected, device.mode, multi]);
+  }, [inWindow, onReady, device.connected, device.mode, multi]);
 
   const state: "ready" | "unauthorized" | "offline" | "none" =
     device.connected && device.mode === "adb"
