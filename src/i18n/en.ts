@@ -1009,6 +1009,7 @@ const en = {
   "ios.mirror.errTitle": "iPhone mirror error",
   "ios.mirror.errHint": "Make sure the iPhone is unlocked & trusted. iOS 17+ needs a developer tunnel.",
   "ios.shot.take": "Take Screenshot",
+  "ios.shot.note": "Live video mirror isn't available for iPhone on this host (iOS restricts it to QuickTime/Finder). Capture a screenshot instead — read-only, no jailbreak.",
   "ios.shot.taking": "Capturing…",
   "ios.shot.hint": "Grab a still image of the device screen and save it as PNG.",
   "ios.shot.save": "Save iOS screenshot",

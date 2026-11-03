@@ -1007,6 +1007,7 @@ const id: Dict = {
   "ios.mirror.errTitle": "Mirror iPhone error",
   "ios.mirror.errHint": "Pastikan iPhone tidak terkunci & dipercaya. iOS 17+ butuh developer tunnel.",
   "ios.shot.take": "Ambil Tangkapan Layar",
+  "ios.shot.note": "Mirror video langsung iPhone tidak tersedia di host ini (iOS membatasinya ke QuickTime/Finder). Ambil tangkapan layar saja — read-only, tanpa jailbreak.",
   "ios.shot.taking": "Mengambil…",
   "ios.shot.hint": "Ambil gambar diam layar perangkat dan simpan sebagai PNG.",
   "ios.shot.save": "Simpan tangkapan layar iOS",

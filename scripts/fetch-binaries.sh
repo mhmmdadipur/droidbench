@@ -21,37 +21,6 @@ trap 'rm -rf "$TMP"' EXIT
 
 UA="Mozilla/5.0 (droidbench fetch-binaries)"
 
-# Download the go-ios binary (iOS screen mirror via MJPEG) into binaries/imd/.
-# MIT-licensed; https://github.com/danielpaulus/go-ios
-GOIOS_VER="v1.3.2"
-fetch_goios() {
-  local plat="$1" asset dest="$DEST/imd"
-  mkdir -p "$dest"
-  case "$plat" in
-    mac)   asset="go-ios-mac.zip" ;;
-    linux) asset="go-ios-linux.zip" ;;
-    win)   asset="go-ios-win.zip" ;;
-    *) return 0 ;;
-  esac
-  echo "==> Downloading go-ios ($asset) for iOS mirror"
-  if curl -fL -A "$UA" -o "$TMP/goios.zip" \
-      "https://github.com/danielpaulus/go-ios/releases/download/${GOIOS_VER}/${asset}"; then
-    rm -rf "$TMP/goios"; mkdir -p "$TMP/goios"
-    unzip -o -q "$TMP/goios.zip" -d "$TMP/goios"
-    local bin
-    bin="$(find "$TMP/goios" -maxdepth 2 -name 'ios' -o -name 'ios.exe' | head -1)"
-    if [ -n "$bin" ]; then
-      if [ "$plat" = "win" ]; then cp "$bin" "$dest/ios-mirror.exe";
-      else cp "$bin" "$dest/ios-mirror"; chmod +x "$dest/ios-mirror"; fi
-      echo "    + ios-mirror (go-ios)"
-    else
-      echo "!!  go-ios binary not found in archive."
-    fi
-  else
-    echo "!!  Could not download go-ios — iOS mirror will be unavailable."
-  fi
-}
-
 PLATFORM="${1:-auto}"
 if [ "$PLATFORM" = "auto" ]; then
   case "$(uname -s)" in
@@ -163,7 +132,6 @@ if [ "$PLATFORM" = "win" ]; then
     echo "    idevicescreenshot.exe + their DLLs into $IMD_DEST manually."
     echo "    Source: https://github.com/libimobiledevice-win32/imobiledevice-net/releases"
   fi
-  fetch_goios win
   echo
   echo "NOTE: Windows iOS support also needs Apple Mobile Device Support (install"
   echo "      iTunes, or the Apple Devices app) for the USB driver."
@@ -184,12 +152,10 @@ else
         echo "    Install it (brew install libimobiledevice) then re-run this or"
         echo "    scripts/bundle-imobiledevice-mac.sh."
       fi
-      fetch_goios mac
       ;;
     linux)
       echo "are resolved from the system on Linux — install libimobiledevice:"
       echo "  sudo apt install libimobiledevice-utils  (or your distro's package)"
-      fetch_goios linux
       ;;
   esac
 fi

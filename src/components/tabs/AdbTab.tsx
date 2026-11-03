@@ -156,31 +156,6 @@ export function AdbTab() {
     });
   }
 
-  // iOS screen mirror (read-only MJPEG over USB via go-ios). Opens its own
-  // window, same pattern as the Android mirror.
-  function startIosMirror() {
-    if (!device.connected || device.mode !== "ios") {
-      push(tr("ios.mirror.needs"), "stderr");
-      return;
-    }
-    push(tr("ios.mirror.opening"), "system");
-    const win = new WebviewWindow("ios-mirror", {
-      url: "index.html?view=ios-mirror",
-      title: "Droidbench — iPhone Mirror",
-      width: 420,
-      height: 860,
-      minWidth: 320,
-      minHeight: 560,
-      resizable: true,
-      decorations: false,
-      shadow: true,
-      transparent: true,
-    });
-    win.once("tauri://error", (e) => {
-      push(tr("adb.mirrorError", { err: JSON.stringify(e.payload) }), "stderr");
-    });
-  }
-
   // iOS screenshot — capture the iPhone/iPad screen to a PNG (read-only, works
   // today via libimobiledevice). Lives here in Screen & Control.
   const [iosShooting, setIosShooting] = useState(false);
@@ -223,31 +198,14 @@ export function AdbTab() {
 
   return (
     <>
-      {/* MIRROR — platform-neutral; both buttons always visible so users see
-          iOS is supported, each enabled for its device type. */}
+      {/* MIRROR — Android screen mirror (scrcpy). iOS has no reliable live
+          mirror path on current macOS/iOS for third-party apps, so iOS gets a
+          Screenshot instead (read-only, works everywhere). */}
       <Section title={tr("mirror.section")}>
-        <Button
-          variant="violet"
-          size="block"
-          disabled={isIos || !(device.connected && device.mode === "adb")}
-          title={tr("adb.mirrorHint")}
-          onClick={startMirroring}
-        >
-          {tr("adb.mirror")}
-        </Button>
-        <Button
-          variant="violet"
-          size="block"
-          disabled={!isIos}
-          title={tr("ios.mirror.hint")}
-          onClick={startIosMirror}
-        >
-          {tr("ios.mirror.btn")}
-        </Button>
-        {isIos && (
+        {isIos ? (
           <>
-            <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-[10.5px] leading-snug text-amber-700">
-              {tr("ios.mirror.note")}
+            <p className="rounded-md bg-[var(--color-bg)] px-2.5 py-1.5 text-[10.5px] leading-snug text-[var(--color-ink-faint)]">
+              {tr("ios.shot.note")}
             </p>
             <Button size="block" disabled={iosShooting} title={tr("ios.shot.hint")} onClick={iosScreenshotNow}>
               {iosShooting ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
@@ -267,6 +225,16 @@ export function AdbTab() {
               </>
             )}
           </>
+        ) : (
+          <Button
+            variant="violet"
+            size="block"
+            disabled={!(device.connected && device.mode === "adb")}
+            title={tr("adb.mirrorHint")}
+            onClick={startMirroring}
+          >
+            {tr("adb.mirror")}
+          </Button>
         )}
       </Section>
 

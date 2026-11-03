@@ -52,7 +52,7 @@ pub fn resolve_tool(app: &AppHandle, tool: &str) -> String {
     // named exactly `idevice_id` at the resources root.
     let is_ios_tool = matches!(
         tool,
-        "idevice_id" | "ideviceinfo" | "idevicediagnostics" | "idevicescreenshot" | "ios-mirror"
+        "idevice_id" | "ideviceinfo" | "idevicediagnostics" | "idevicescreenshot"
     );
     let sub = if is_ios_tool { "imd" } else { "" };
 

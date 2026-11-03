@@ -22,7 +22,6 @@ import { ToolsBar } from "./components/ToolsBar";
 import { LogPanel } from "./components/LogPanel";
 import { SetupWizard } from "./components/SetupWizard";
 import { MirrorView } from "./components/mirror/MirrorView";
-import { IosMirrorView } from "./components/mirror/IosMirrorView";
 import { MirrorTitleBar } from "./components/mirror/MirrorTitleBar";
 import { FileExplorer } from "./components/explorer/FileExplorer";
 import { AdbTab } from "./components/tabs/AdbTab";
@@ -430,44 +429,6 @@ function MirrorPage() {
   );
 }
 
-/** Standalone page for the read-only iOS mirror window (?view=ios-mirror). */
-function IosMirrorPage() {
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let destroyed = false;
-    (async () => {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      const { invoke } = await import("@tauri-apps/api/core");
-      const win = getCurrentWindow();
-      unlisten = await win.onCloseRequested(async (event) => {
-        if (destroyed) return;
-        event.preventDefault();
-        try {
-          await invoke("ios_mirror_stop");
-        } catch {
-          /* ignore */
-        }
-        destroyed = true;
-        win.destroy();
-      });
-    })();
-    return () => unlisten?.();
-  }, []);
-
-  async function close() {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    getCurrentWindow().close();
-  }
-  return (
-    <div className="flex h-screen flex-col bg-[var(--color-bg)]">
-      <MirrorTitleBar />
-      <div className="min-h-0 flex-1 p-3">
-        <IosMirrorView onClose={close} />
-      </div>
-    </div>
-  );
-}
-
 export default function App() {
   // The mirror runs in its own window (?view=mirror), fully separate from the
   // main Droidbench window.
@@ -477,15 +438,6 @@ export default function App() {
       <I18nProvider>
         <DeviceProvider>
           <MirrorPage />
-        </DeviceProvider>
-      </I18nProvider>
-    );
-  }
-  if (view === "ios-mirror") {
-    return (
-      <I18nProvider>
-        <DeviceProvider>
-          <IosMirrorPage />
         </DeviceProvider>
       </I18nProvider>
     );
