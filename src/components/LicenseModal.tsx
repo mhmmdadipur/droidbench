@@ -49,6 +49,12 @@ const BUNDLED = [
     url: "https://github.com/libimobiledevice/libimobiledevice",
   },
   {
+    name: "go-ios (iOS mirror)",
+    author: "Daniel Paulus",
+    license: "MIT License",
+    url: "https://github.com/danielpaulus/go-ios",
+  },
+  {
     name: "adb, fastboot",
     author: "Android Open Source Project",
     license: "Apache License 2.0",

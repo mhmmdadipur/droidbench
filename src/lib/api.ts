@@ -102,6 +102,15 @@ export function iosScreenshot(udid: string, destDir: string): Promise<string> {
   return invoke<string>("ios_screenshot", { udid, destDir });
 }
 
+/** Start iOS screen mirror (read-only MJPEG over USB). Frames arrive as raw
+ * JPEG bytes over the Channel. */
+export function iosMirrorStart(udid: string, onFrame: import("@tauri-apps/api/core").Channel<ArrayBuffer>): Promise<void> {
+  return invoke("ios_mirror_start", { udid, onFrame });
+}
+export function iosMirrorStop(): Promise<void> {
+  return invoke("ios_mirror_stop");
+}
+
 export interface AdbDeviceEntry {
   serial: string;
   state: string; // "device" | "unauthorized" | "offline" | other

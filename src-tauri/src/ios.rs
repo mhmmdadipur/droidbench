@@ -5,9 +5,19 @@
 // `idevicediagnostics` as sidecars (see runner::resolve_tool).
 
 use serde::Serialize;
+use std::sync::Arc;
+use tauri::ipc::{Channel, Response};
 use tauri::AppHandle;
+use tokio::sync::Mutex;
 
-use crate::runner::run_capture_internal;
+use crate::runner::{resolve_tool, run_capture_internal};
+
+/// Holds the running go-ios screenshot-stream child so the mirror can be stopped.
+#[derive(Default)]
+pub struct IosMirrorState {
+    pub child: Arc<Mutex<Option<tokio::process::Child>>>,
+    pub running: Arc<Mutex<bool>>,
+}
 
 /// A flat iOS report for the Diagnostik-style iOS tab.
 #[derive(Clone, Serialize, Default)]
@@ -104,21 +114,22 @@ pub async fn ios_info(app: AppHandle, udid: String) -> Result<IosReport, String>
     r.battery_cycle_count = extract_int(&gauge, "CycleCount");
     r.battery_design_capacity = extract_int(&gauge, "DesignCapacity");
     r.battery_full_capacity = extract_int(&gauge, "FullChargeCapacity");
-    // Health %: iOS is inconsistent about FullChargeCapacity. On many devices it
-    // is reported in mAh (e.g. 2300) → health = full/design*100. On others it is
-    // already a 0–100 percentage (e.g. 100) → use it directly. We disambiguate
-    // by magnitude: a value <= 100 is a percentage, a larger value is mAh.
+    // Battery HEALTH %: only trustworthy when GasGauge exposes a real mAh pair
+    // (design > 0 AND full-charge in mAh, i.e. clearly > 100). On iOS 17+ the
+    // diagnostics relay returns FullChargeCapacity=100 with NO DesignCapacity —
+    // a placeholder, NOT a real 100% health — so we must NOT report a number
+    // there (it would wrongly show 100% when the phone is e.g. 88%). We leave
+    // health unknown and only keep the reliable CycleCount + current level.
     match (r.battery_design_capacity, r.battery_full_capacity) {
-        (_, Some(full)) if full > 0 && full <= 100 => {
-            // already a health percentage
-            r.battery_health_pct = Some(full);
-            // the "100" isn't a real mAh capacity — don't show it as one
-            r.battery_full_capacity = None;
-        }
-        (Some(d), Some(full)) if d > 0 && full > 100 => {
+        (Some(d), Some(full)) if d > 100 && full > 100 => {
             r.battery_health_pct = Some(((full as f64 / d as f64) * 100.0).round() as i64);
         }
-        _ => {}
+        _ => {
+            // not reliably exposed (common on modern iOS) — report unknown
+            r.battery_health_pct = None;
+            r.battery_full_capacity = None;
+            r.battery_design_capacity = None;
+        }
     }
 
     Ok(r)
@@ -229,4 +240,199 @@ pub async fn ios_screenshot(app: AppHandle, udid: String, dest_dir: String) -> R
             out.trim().to_string()
         })
     }
+}
+
+// ─── iOS screen mirror (read-only, via go-ios MJPEG stream over USB) ─────────
+//
+// go-ios (`ios-mirror screenshot --stream --port=<p>`) serves a standard MJPEG
+// multipart stream at http://127.0.0.1:<p>/ . We read that stream, split it on
+// the multipart boundary into individual JPEG frames, and forward each raw JPEG
+// to the frontend over a Tauri Channel (the frontend renders it to an <img>).
+//
+// Read-only: iOS gives no touch-control path without a jailbreak. iOS 17+ also
+// needs `ios tunnel start` (a privileged daemon); iOS <= 16 works directly.
+
+// go-ios v1.3.2 ignores --port and always serves the MJPEG stream on 3333.
+const IOS_MIRROR_PORT: u16 = 3333;
+
+#[tauri::command]
+pub async fn ios_mirror_start(
+    app: AppHandle,
+    state: tauri::State<'_, IosMirrorState>,
+    udid: String,
+    on_frame: Channel<Response>,
+) -> Result<(), String> {
+    // Always tear down any previous session first (don't reject) — a stale
+    // `running` flag or a leftover child from a closed window must not block a
+    // fresh start. This makes the mirror re-openable after any abnormal exit.
+    {
+        *state.running.lock().await = false;
+        if let Some(mut old) = state.child.lock().await.take() {
+            let _ = old.kill().await;
+        }
+    }
+    // give the old go-ios process a moment to release port 3333
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+
+    // Safety net: kill any stray ios-mirror (go-ios) process left from a crash
+    // or a pre-fix run that is still holding port 3333.
+    #[cfg(not(windows))]
+    {
+        let _ = tokio::process::Command::new("pkill")
+            .args(["-f", "ios-mirror"])
+            .output()
+            .await;
+    }
+    #[cfg(windows)]
+    {
+        let _ = tokio::process::Command::new("taskkill")
+            .args(["/F", "/IM", "ios-mirror.exe"])
+            .output()
+            .await;
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+    *state.running.lock().await = true;
+
+    let tool = resolve_tool(&app, "ios-mirror");
+
+    // start the go-ios MJPEG stream server (it always listens on 3333)
+    let mut cmd = tokio::process::Command::new(&tool);
+    cmd.args(["screenshot", "--stream"]);
+    if !udid.trim().is_empty() {
+        cmd.arg(format!("--udid={udid}"));
+    }
+    cmd.stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .stdin(std::process::Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let child = cmd
+        .spawn()
+        .map_err(|e| format!("failed to start ios-mirror: {e}"))?;
+    *state.child.lock().await = Some(child);
+
+    let running = state.running.clone();
+    let child_handle = state.child.clone();
+    tokio::spawn(async move {
+        // give the stream server a moment to come up, then connect + read frames
+        let url = format!("http://127.0.0.1:{IOS_MIRROR_PORT}/");
+        let mut attempts = 0;
+        let stream = loop {
+            if !*running.lock().await {
+                return;
+            }
+            match tokio::net::TcpStream::connect(("127.0.0.1", IOS_MIRROR_PORT)).await {
+                Ok(s) => break s,
+                Err(_) => {
+                    attempts += 1;
+                    if attempts > 50 {
+                        use tauri::Emitter;
+                        let _ = app.emit("ios-mirror-error", "ios mirror: stream server never came up".to_string());
+                        *running.lock().await = false;
+                        return;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                }
+            }
+        };
+        let _ = url; // (kept for clarity; we speak HTTP manually below)
+
+        if let Err(e) = read_mjpeg(stream, &on_frame, &running).await {
+            use tauri::Emitter;
+            let _ = app.emit("ios-mirror-error", format!("ios mirror: {e}"));
+        }
+        *running.lock().await = false;
+        // ensure the child is reaped
+        if let Some(mut c) = child_handle.lock().await.take() {
+            let _ = c.kill().await;
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn ios_mirror_stop(state: tauri::State<'_, IosMirrorState>) -> Result<(), String> {
+    *state.running.lock().await = false;
+    if let Some(mut child) = state.child.lock().await.take() {
+        let _ = child.kill().await;
+    }
+    Ok(())
+}
+
+/// Minimal HTTP + multipart/x-mixed-replace reader: sends the GET request, skips
+/// response headers, then scans the body for JPEG frames (SOI 0xFFD8 … EOI
+/// 0xFFD9) and forwards each complete frame as raw bytes over the channel.
+async fn read_mjpeg(
+    mut stream: tokio::net::TcpStream,
+    chan: &Channel<Response>,
+    running: &Arc<Mutex<bool>>,
+) -> Result<(), String> {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    stream
+        .write_all(b"GET / HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: keep-alive\r\n\r\n")
+        .await
+        .map_err(|e| e.to_string())?;
+    stream.set_nodelay(true).ok();
+
+    let mut acc: Vec<u8> = Vec::with_capacity(1 << 20);
+    let mut buf = vec![0u8; 65536];
+
+    loop {
+        if !*running.lock().await {
+            return Ok(());
+        }
+        let n = match stream.read(&mut buf).await {
+            Ok(0) => return Ok(()),
+            Ok(n) => n,
+            Err(e) => return Err(e.to_string()),
+        };
+        acc.extend_from_slice(&buf[..n]);
+
+        // extract every complete JPEG (FFD8 … FFD9) currently buffered
+        loop {
+            let start = match find_marker(&acc, 0, 0xD8) {
+                Some(i) => i,
+                None => {
+                    // no SOI yet — keep only a small tail to avoid unbounded growth
+                    if acc.len() > 1 << 20 {
+                        acc.drain(0..acc.len() - 4);
+                    }
+                    break;
+                }
+            };
+            let end = match find_marker(&acc, start + 2, 0xD9) {
+                Some(i) => i + 2, // include the EOI marker
+                None => {
+                    // incomplete frame — drop anything before SOI and wait for more
+                    if start > 0 {
+                        acc.drain(0..start);
+                    }
+                    break;
+                }
+            };
+            let frame: Vec<u8> = acc[start..end].to_vec();
+            acc.drain(0..end);
+            let _ = chan.send(Response::new(frame));
+        }
+    }
+}
+
+/// Find a JPEG marker `0xFF <code>` at or after `from`. Returns the index of FF.
+fn find_marker(d: &[u8], from: usize, code: u8) -> Option<usize> {
+    let mut i = from;
+    while i + 1 < d.len() {
+        if d[i] == 0xFF && d[i + 1] == code {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
 }

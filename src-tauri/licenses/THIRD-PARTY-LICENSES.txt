@@ -78,3 +78,6 @@ Bundled CLI tools
   (https://github.com/libimobiledevice/libimobiledevice), licensed under the
   GNU Lesser General Public License v2.1 (LGPL-2.1). Used to read iOS device
   info, storage, and battery diagnostics over USB. Unmodified upstream binaries.
+- ios-mirror (go-ios) — https://github.com/danielpaulus/go-ios, MIT License,
+  Copyright (c) Daniel Paulus. Used for the read-only iOS screen mirror (MJPEG
+  over USB). Unmodified upstream binary.

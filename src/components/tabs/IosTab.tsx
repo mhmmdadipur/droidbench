@@ -134,10 +134,14 @@ export function IosTab() {
           <Card icon={BatteryCharging} title={t("ios.card.battery")}>
             <KV
               k={t("ios.bat.health")}
-              v={report.battery_health_pct != null ? `${report.battery_health_pct}%` : "—"}
-              strong
+              v={report.battery_health_pct != null ? `${report.battery_health_pct}%` : t("ios.bat.naHealth")}
+              strong={report.battery_health_pct != null}
             />
-            <KV k={t("ios.bat.cycles")} v={report.battery_cycle_count != null ? String(report.battery_cycle_count) : "—"} />
+            <KV
+              k={t("ios.bat.cycles")}
+              v={report.battery_cycle_count != null ? String(report.battery_cycle_count) : "—"}
+              strong={report.battery_health_pct == null && report.battery_cycle_count != null}
+            />
             <KV
               k={t("ios.bat.capacity")}
               v={

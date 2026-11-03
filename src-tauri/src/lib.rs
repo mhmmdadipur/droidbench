@@ -5,6 +5,7 @@ mod ios;
 mod mirror;
 mod runner;
 
+use ios::IosMirrorState;
 use mirror::MirrorState;
 use runner::RunnerState;
 
@@ -19,6 +20,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(RunnerState::default())
         .manage(MirrorState::default())
+        .manage(IosMirrorState::default())
         .invoke_handler(tauri::generate_handler![
             runner::run_command,
             runner::run_capture,
@@ -29,6 +31,8 @@ pub fn run() {
             device::list_devices,
             ios::ios_info,
             ios::ios_screenshot,
+            ios::ios_mirror_start,
+            ios::ios_mirror_stop,
             debloat::load_debloat_db,
             debloat::list_installed_packages,
             debloat::list_disabled_packages,

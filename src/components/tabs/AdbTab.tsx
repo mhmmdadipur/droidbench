@@ -156,15 +156,29 @@ export function AdbTab() {
     });
   }
 
-  // iOS screen mirror — placeholder. The capture engine (AirPlay/UxPlay or
-  // QuickTime-USB) isn't wired up yet; this reserves the UI slot so iOS mirror
-  // lives in this tab alongside Android. For now it explains the status.
+  // iOS screen mirror (read-only MJPEG over USB via go-ios). Opens its own
+  // window, same pattern as the Android mirror.
   function startIosMirror() {
     if (!device.connected || device.mode !== "ios") {
       push(tr("ios.mirror.needs"), "stderr");
       return;
     }
-    push(tr("ios.mirror.soon"), "system");
+    push(tr("ios.mirror.opening"), "system");
+    const win = new WebviewWindow("ios-mirror", {
+      url: "index.html?view=ios-mirror",
+      title: "Droidbench — iPhone Mirror",
+      width: 420,
+      height: 860,
+      minWidth: 320,
+      minHeight: 560,
+      resizable: true,
+      decorations: false,
+      shadow: true,
+      transparent: true,
+    });
+    win.once("tauri://error", (e) => {
+      push(tr("adb.mirrorError", { err: JSON.stringify(e.payload) }), "stderr");
+    });
   }
 
   // iOS screenshot — capture the iPhone/iPad screen to a PNG (read-only, works

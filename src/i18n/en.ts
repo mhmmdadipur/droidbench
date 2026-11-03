@@ -51,6 +51,12 @@ const en = {
   "status.serial": "Serial",
   "status.system": "System",
   "status.udid": "UDID",
+  "status.copyHint": "Copy device status to clipboard",
+  "status.copyField": "Copy this value",
+  "status.copied": "Device status copied to clipboard.",
+  "status.copiedField": "Copied: {value}",
+  "status.copyFail": "Failed to copy device status.",
+  "status.copyNone": "No device connected to copy.",
 
   // ─── tools bar ──────────────────────────────────────────────────────────
   "tools.title": "Tools",
@@ -948,7 +954,7 @@ const en = {
 
   // ─── iOS tab ──────────────────────────────────────────────────────────────
   "ios.help":
-    "Diagnostics for a connected iPhone/iPad over USB (via libimobiledevice). Read-only — battery health, device info & storage, like 3uTools. No jailbreak needed; tap Trust on the device.",
+    "Diagnostics for a connected iPhone/iPad over USB (via libimobiledevice, read-only). Shows device info, storage, battery cycle count & charge level. Note: exact battery health % isn't exposed by iOS 17+ over USB.",
   "ios.connectFirst": "Connect & trust an iPhone/iPad first (tap Trust on the device).",
   "ios.noDevice":
     "No iOS device detected. Connect an iPhone/iPad via USB and tap Trust This Computer on it. iOS tools (libimobiledevice) must be installed/bundled.",
@@ -970,7 +976,8 @@ const en = {
   "ios.bat.good": "Battery is in great shape (≥90%).",
   "ios.bat.fair": "Battery is okay (80–89%) — some wear.",
   "ios.bat.poor": "Battery is worn (<80%) — consider a replacement.",
-  "ios.bat.note": "Battery detail couldn't be read on this iOS version/device.",
+  "ios.bat.note": "On iOS 17+ Apple no longer exposes exact battery health or mAh capacity over USB — only cycle count & current level are reliable. Check Settings → Battery → Battery Health on the device for the exact %.",
+  "ios.bat.naHealth": "Not exposed (see note)",
   "ios.card.identity": "Identity & Authenticity",
   "ios.id.model": "Model",
   "ios.id.productType": "Product type",
@@ -992,10 +999,15 @@ const en = {
   "ios.card.screenshot": "Screenshot",
   "ios.shot.intro": "Capture the iPhone/iPad screen to a PNG (requires Developer Mode on the device).",
   "ios.mirror.btn": "Mirror iPhone Screen",
-  "ios.mirror.hint": "Live-mirror the iPhone/iPad screen (read-only). Coming soon.",
-  "ios.mirror.note": "Live iOS mirroring isn't available yet — the capture engine is still in development. For now, use Screenshot below to grab the screen.",
+  "ios.mirror.hint": "Live-mirror the iPhone/iPad screen over USB (read-only).",
+  "ios.mirror.note": "iOS mirror is read-only (no touch control — iOS doesn't allow it without a jailbreak). iOS 17+ also needs a developer tunnel; iOS 16 and older work directly.",
   "ios.mirror.needs": "Connect & trust an iPhone/iPad first.",
-  "ios.mirror.soon": "iOS live mirror is coming soon — use Screenshot below for now.",
+  "ios.mirror.opening": "Opening iPhone mirror window…",
+  "ios.mirror.title": "iPhone Screen (read-only)",
+  "ios.mirror.starting": "Starting iPhone mirror…",
+  "ios.mirror.readonlyNote": "Read-only view. Touch control isn't possible on iOS without a jailbreak.",
+  "ios.mirror.errTitle": "iPhone mirror error",
+  "ios.mirror.errHint": "Make sure the iPhone is unlocked & trusted. iOS 17+ needs a developer tunnel.",
   "ios.shot.take": "Take Screenshot",
   "ios.shot.taking": "Capturing…",
   "ios.shot.hint": "Grab a still image of the device screen and save it as PNG.",
