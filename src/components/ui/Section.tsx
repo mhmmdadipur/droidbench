@@ -1,10 +1,11 @@
 import { type ReactNode } from "react";
+import { Info } from "lucide-react";
 
 /** A short, layman-friendly explanation shown at the top of each tab. */
 export function TabHelp({ children }: { children: ReactNode }) {
   return (
     <div className="mb-3 flex gap-2 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] leading-snug text-sky-800">
-      <span className="mt-[1px] shrink-0">ℹ️</span>
+      <Info size={13} className="mt-[1px] shrink-0" />
       <span>{children}</span>
     </div>
   );

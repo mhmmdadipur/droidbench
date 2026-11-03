@@ -25,6 +25,7 @@ import {
 import { Button } from "../ui/Button";
 import { Section, TabHelp } from "../ui/Section";
 import { LicenseModal } from "../LicenseModal";
+import { IosTab } from "./IosTab";
 import { runCapture, installApk } from "../../lib/api";
 import { useLog } from "../../state/log";
 import { useDevice } from "../../state/device";
@@ -204,6 +205,16 @@ const DIAG_CODES: { labelKey: TKey; code: string }[] = [
 ];
 
 export function DiagnosticTab() {
+  const { device } = useDevice();
+  // iOS devices get the dedicated iOS diagnostics view (battery health, info,
+  // storage, screenshot). Everything below is the Android path.
+  if (device.mode === "ios") {
+    return <IosTab />;
+  }
+  return <AndroidDiagnosticTab />;
+}
+
+function AndroidDiagnosticTab() {
   const { push } = useLog();
   const { device } = useDevice();
   const { t } = useI18n();

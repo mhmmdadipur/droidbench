@@ -47,15 +47,33 @@ pub fn resolve_tool(app: &AppHandle, tool: &str) -> String {
         tool.to_string()
     };
 
+    // iOS (libimobiledevice) tools live in a `binaries/imd/` subfolder — kept
+    // out of `binaries/` root because tauri-build chokes on a bundled file
+    // named exactly `idevice_id` at the resources root.
+    let is_ios_tool = matches!(
+        tool,
+        "idevice_id" | "ideviceinfo" | "idevicediagnostics" | "idevicescreenshot"
+    );
+    let sub = if is_ios_tool { "imd" } else { "" };
+
     // 1) bundled resource dir
     if let Ok(resource_dir) = app.path().resource_dir() {
-        let candidate = resource_dir.join("binaries").join(&exe);
+        let base = resource_dir.join("binaries");
+        let candidate = if sub.is_empty() {
+            base.join(&exe)
+        } else {
+            base.join(sub).join(&exe)
+        };
         if candidate.exists() {
             return candidate.to_string_lossy().to_string();
         }
     }
     // 2) dev path relative to CWD
-    let dev = std::path::Path::new("binaries").join(&exe);
+    let dev = if sub.is_empty() {
+        std::path::Path::new("binaries").join(&exe)
+    } else {
+        std::path::Path::new("binaries").join(sub).join(&exe)
+    };
     if dev.exists() {
         if let Ok(abs) = std::fs::canonicalize(&dev) {
             return abs.to_string_lossy().to_string();
@@ -124,7 +142,7 @@ pub struct ToolStatus {
 pub async fn check_tools(app: AppHandle) -> Result<Vec<ToolStatus>, String> {
     use tauri::Manager;
 
-    let tools = ["adb", "fastboot", "scrcpy", "heimdall", "payload-dumper"];
+    let tools = ["adb", "fastboot", "scrcpy", "heimdall", "payload-dumper", "idevice_id", "ideviceinfo", "idevicediagnostics", "idevicescreenshot"];
     let bundled_dir = app.path().resource_dir().ok().map(|d| d.join("binaries"));
     let dev_dir = std::fs::canonicalize("binaries").ok();
 
@@ -243,6 +261,13 @@ fn install_hint(tool: &str) -> Option<String> {
         }
         "adb" | "fastboot" => {
             "→ Bundled adb/fastboot missing. Run scripts/fetch-binaries.sh, or install Android platform-tools."
+        }
+        "idevice_id" | "ideviceinfo" | "idevicediagnostics" | "idevicescreenshot" => {
+            if mac {
+                "→ iOS tools not found. Install libimobiledevice: brew install libimobiledevice"
+            } else {
+                "→ iOS tools not found. Install libimobiledevice (e.g. apt install libimobiledevice-utils, or your package manager)."
+            }
         }
         _ => return None,
     };

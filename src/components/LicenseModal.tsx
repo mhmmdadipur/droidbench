@@ -43,6 +43,12 @@ const BUNDLED = [
     url: "https://github.com/Genymobile/scrcpy",
   },
   {
+    name: "libimobiledevice (iOS tools)",
+    author: "libimobiledevice project",
+    license: "LGPL-2.1",
+    url: "https://github.com/libimobiledevice/libimobiledevice",
+  },
+  {
     name: "adb, fastboot",
     author: "Android Open Source Project",
     license: "Apache License 2.0",

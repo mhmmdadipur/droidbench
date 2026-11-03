@@ -75,3 +75,18 @@ Checklist saat menambah/mengubah tab yang membaca data dari HP:
 4. Verifikasi manual: scan → pindah tab (tetap) → cabut HP (hilang).
 
 Tab yang sudah mengikuti pola ini: Diagnostik, Koneksi/DNS, Aplikasi.
+
+## Aturan UI — Ikon, Bukan Emoji (WAJIB)
+
+- **Jangan pernah pakai emoji/emoticon di UI** (mis. `ℹ️` `💡` `✓` `✅` `⚠️` `📶`
+  `📱` `🎉` dll) — baik di komponen JSX maupun di string i18n (`src/i18n/*.ts`).
+- Selalu gunakan **ikon/simbol** dari `lucide-react` (contoh: `Info`, `Lightbulb`,
+  `Check`, `Wifi`, `AlertTriangle`). Render sebagai komponen `<Icon size={..} />`,
+  bukan karakter emoji.
+- Untuk pesan log (panel log hanya teks polos), **hilangkan** emoji — jangan
+  ganti dengan karakter lain; warnanya sudah menandakan status.
+- Pengecualian yang boleh dipertahankan: tanda panah `→` dalam teks panduan
+  jalur menu (mis. "Settings → About") — itu notasi menu standar, bukan
+  emoticon.
+- Sebelum selesai, pastikan tidak ada emoji tersisa di `src/` (sweep rentang
+  unicode emoji/dingbats/simbol).

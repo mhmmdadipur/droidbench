@@ -74,3 +74,7 @@ Bundled CLI tools
   Project (AOSP), licensed under the Apache License, Version 2.0.
 - scrcpy, scrcpy-server — the scrcpy project (https://github.com/Genymobile/scrcpy),
   licensed under the Apache License, Version 2.0.
+- idevice_id, ideviceinfo, idevicediagnostics — the libimobiledevice project
+  (https://github.com/libimobiledevice/libimobiledevice), licensed under the
+  GNU Lesser General Public License v2.1 (LGPL-2.1). Used to read iOS device
+  info, storage, and battery diagnostics over USB. Unmodified upstream binaries.

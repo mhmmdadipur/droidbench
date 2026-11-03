@@ -14,6 +14,7 @@ import {
   ScrollText,
   Wrench,
   Scale,
+  MonitorSmartphone,
 } from "lucide-react";
 import { TitleBar } from "./components/TitleBar";
 import { DeviceStatus } from "./components/DeviceStatus";
@@ -40,6 +41,7 @@ import { MirrorProvider } from "./state/mirror";
 import { DiagnosticProvider } from "./state/diagnostic";
 import { ConnectivityProvider } from "./state/connectivity";
 import { AppManagerProvider } from "./state/appmanager";
+import { IosDiagnosticProvider } from "./state/iosDiagnostic";
 import { I18nProvider, useI18n, type TKey } from "./i18n";
 import { LicenseModal, hasAcceptedTerms } from "./components/LicenseModal";
 import { Modal } from "./components/ui/Modal";
@@ -59,7 +61,7 @@ type TabId =
 type TabGroup = "device" | "flashing";
 
 const TABS: { id: TabId; labelKey: TKey; icon: typeof Smartphone; descKey: TKey; group: TabGroup }[] = [
-  { id: "adb", labelKey: "tab.adb", icon: Smartphone, descKey: "tab.adb.desc", group: "device" },
+  { id: "adb", labelKey: "tab.adb", icon: MonitorSmartphone, descKey: "tab.adb.desc", group: "device" },
   { id: "diagnostic", labelKey: "tab.diagnostic", icon: Stethoscope, descKey: "tab.diagnostic.desc", group: "device" },
   { id: "appmanager", labelKey: "tab.appmanager", icon: LayoutGrid, descKey: "tab.appmanager.desc", group: "device" },
   { id: "logcat", labelKey: "tab.logcat", icon: ScrollText, descKey: "tab.logcat.desc", group: "device" },
@@ -176,9 +178,11 @@ function Shell() {
   const groupTabs = TABS.filter((tb) => tb.group === group);
   const activeGroup = GROUPS.find((g) => g.id === group);
   // Connection guide is an in-app modal (same style as the Terms popup). It
-  // auto-opens whenever there's no ready adb device, and closes itself once a
-  // phone is ready. The user can also dismiss it and reopen via the banner.
-  const needsSetup = !(device.connected && device.mode === "adb");
+  // auto-opens whenever there's no ready device (Android adb OR iOS), and
+  // closes itself once a phone is ready. Reopenable via the banner.
+  const deviceReady =
+    device.connected && (device.mode === "adb" || device.mode === "ios");
+  const needsSetup = !deviceReady;
   const [showSetup, setShowSetup] = useState(false);
   useEffect(() => {
     if (needsSetup) setShowSetup(true);
@@ -471,7 +475,9 @@ export default function App() {
               <DiagnosticProvider>
                 <ConnectivityProvider>
                   <AppManagerProvider>
-                    <Shell />
+                    <IosDiagnosticProvider>
+                      <Shell />
+                    </IosDiagnosticProvider>
                   </AppManagerProvider>
                 </ConnectivityProvider>
               </DiagnosticProvider>

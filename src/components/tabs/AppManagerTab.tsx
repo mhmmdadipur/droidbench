@@ -144,7 +144,7 @@ export function AppManagerTab() {
     try {
       await runCapture("adb", ["shell", "am", "force-stop", pkg]);
       await runCapture("adb", ["shell", "monkey", "-p", pkg, "-c", "android.intent.category.LAUNCHER", "1"]);
-      push("✓ restarted.", "system");
+      push("Restarted.", "system");
     } catch (e) {
       push(String(e), "stderr");
     }
@@ -201,7 +201,7 @@ export function AppManagerTab() {
     try {
       const out = await runCapture("adb", ["shell", ...args]);
       if (out.trim()) push(out.trim(), "stdout");
-      push("✓ done.", "system");
+      push("Done.", "system");
     } catch (e) {
       push(String(e), "stderr");
     }
@@ -253,7 +253,7 @@ export function AppManagerTab() {
       const sub = disable ? "disable" : "enable";
       const out = await runCapture("adb", ["shell", "pm", sub, MARKET_HANDLER]);
       if (out.trim()) push(out.trim(), "stdout");
-      push(disable ? "✓ blocked." : "✓ restored.", "system");
+      push(disable ? "Blocked." : "Restored.", "system");
       await readMarketStatus();
     } catch (e) {
       push(String(e), "stderr");

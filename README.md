@@ -1,14 +1,16 @@
 <div align="center">
 
-# 🤖 Droidbench
+# Droidbench
 
-### Satu aplikasi desktop untuk semua urusan oprek Android — ramah pemula.
+### Satu aplikasi desktop untuk semua urusan oprek & servis HP — ramah pemula.
 
-Flashing · Servicing · Debloat · **Cermin Layar (Live Mirror)** — untuk
-**macOS & Windows** dari satu codebase.
-Dibangun dengan **Tauri 2 + React 19 + Tailwind v4**. Tool CLI (adb · fastboot ·
-heimdall · payload-dumper · **scrcpy**) sudah **dibundel** — tinggal copy ke
-laptop lain dan klik.
+Android **dan** iOS. Flashing · Servis · Debloat · Diagnostik (cek HP bekas) ·
+**Cermin Layar (Live Mirror)** — untuk **macOS · Windows · Linux** dari satu
+codebase.
+
+Dibangun dengan **Tauri 2 + React 19 + TypeScript + Tailwind v4 + Rust**.
+Semua tool CLI (adb · fastboot · scrcpy · libimobiledevice) **dibundel** di
+dalam aplikasi — tidak perlu install apa-apa lagi di laptop pengguna.
 
 ![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
@@ -22,11 +24,11 @@ laptop lain dan klik.
 
 <div align="center">
 
-### 🖥️ Tampilan Utama — 3 kolom lega: navigasi · panel tool · log
+### Tampilan Utama — 3 kolom: navigasi · panel tool · log
 
 <img src="docs/screenshot-main.png" alt="Droidbench — main window" width="860" />
 
-### 📱 Cermin Layar (Live Mirror) — layar HP real-time + panel kontrol dalam satu window
+### Cermin Layar (Live Mirror) — layar HP real-time + panel kontrol
 
 <img src="docs/screenshot-mirror.png" alt="Droidbench Mirror" width="520" />
 
@@ -34,188 +36,235 @@ laptop lain dan klik.
 
 ---
 
-## ✨ Sorotan
+## Fitur utama
 
-- 🟢 **Window ber-traffic-light ala macOS** (merah/kuning/hijau) di macOS *dan*
-  Windows. UI terang, segar, aksen teal, sudut membulat.
-- 📊 **Status perangkat** otomatis + bar **Tools** yang menunjukkan tiap CLI
-  bundled / dari sistem / belum ada.
-- 📜 **Command log besar** dengan pencarian, filter error, auto-scroll.
-- 📱 **Live mirror tertanam** — layar HP tampil & bisa dikontrol *di dalam
-  window Droidbench sendiri*. H.264 di-decode di Rust (OpenH264), jadi **tidak
-  bergantung** pada dukungan codec WebView.
-- 🧭 **Ramah pemula** — tiap tab ada penjelasan, tiap tombol ada tooltip Bahasa
-  Indonesia yang menjelaskan fungsinya.
-- 🔄 **Auto-update** bawaan (lihat bagian Auto-update).
+- **Android & iOS.** Perangkat terdeteksi otomatis (adb untuk Android,
+  libimobiledevice untuk iPhone/iPad) dan UI menyesuaikan sendiri.
+- **Diagnostik "cek HP bekas"** ala 3uTools: skor kesehatan, kesehatan baterai,
+  info perangkat, keaslian/bootloader/root, estimasi Play Integrity 3-tier
+  (Android), serta baterai + info + penyimpanan + IMEI (iOS).
+- **Cermin Layar (Live Mirror)** Android tertanam — layar HP tampil & bisa
+  dikontrol di dalam window Droidbench. H.264 di-decode di Rust (OpenH264),
+  jadi tidak bergantung pada codec WebView. (Mirror live iOS belum tersedia;
+  untuk iOS sementara pakai Tangkapan Layar.)
+- **Checklist perangkat keras** + rekomendasi aplikasi tes open-source (sebagian
+  APK ikut dibundel & bisa dipasang via USB sekali klik).
+- **Flashing** Fastboot / Xiaomi / Samsung (Heimdall) + ekstraksi `payload.bin`.
+- **Debloat** reversible (`pm disable-user`) dengan database paket per-merek.
+- **Dwibahasa** Indonesia / English, bisa diganti kapan saja.
+- **Auto-update** bawaan (Tauri updater, paket ber-tanda-tangan).
+- Semua tool **dibundel** → hapus aplikasi = semua ikut terhapus (plug-and-play,
+  tidak menyebar file ke sistem).
 
-## 🧰 Tab
+## Tab
+
+Dikelompokkan jadi dua grup: **Perangkat** dan **Flashing**.
 
 | Tab | Fungsi |
 |-----|--------|
-| **ADB** | start/kill server, reboot system/recovery/fastboot/sideload, pasang ZIP, **Cermin Layar**, daftar perangkat |
-| **Fastboot** | getvar, flash boot/recovery/init_boot/vendor_boot/vbmeta, temp-boot, slot A/B, dis-verity/vbmeta, unlock/lock |
-| **Xiaomi** | pilih folder firmware, jalankan flash_all, info Mi Unlock |
-| **Samsung (Heimdall)** | detect, print-pit, slot BL/AP/CP/CSC/HOME/PIT, no-reboot/repartition, flash |
+| **Layar & Kontrol** | Cermin Layar Android (scrcpy) & iOS (screenshot), start/kill ADB, reboot ke berbagai mode, pasang ZIP, screenshot/rekam layar, wireless ADB |
+| **Diagnostik** | Cek HP bekas: skor, baterai, sensor, keaslian, Play Integrity (Android) — otomatis beralih ke panel iOS (baterai health, info, storage, IMEI) saat iPhone tersambung |
+| **Aplikasi** | Daftar & kelola aplikasi terpasang, pasang APK, blokir/aktifkan market handler |
+| **Logcat** | Log Android real-time, filter per-aplikasi, simpan/bugreport |
+| **Koneksi/DNS** | Toggle WiFi/data/airplane, atur Private DNS |
+| **Developer** | Stress test/monkey, cold-start, overlay overdraw/layout/pointer, dll |
+| **Fastboot** | getvar, flash partisi, temp-boot, slot A/B, disable verity/vbmeta, unlock/lock |
+| **Xiaomi** | pilih folder firmware, flash_all, info Mi Unlock |
+| **Samsung (Heimdall)** | detect, print-pit, flash BL/AP/CP/CSC, dll |
 | **Dumper** | ekstrak image partisi dari OTA `payload.bin` / ZIP |
-| **Debloat** | database paket Xiaomi / Universal (25 merek) / Android TV, diterapkan via ADB `pm disable-user` yang reversible |
 
-## Live mirror
+---
 
-Clicking **Start Mirroring** opens a separate window containing the device
-screen (click/drag/scroll to control it) plus a control panel:
+## Build di laptop sendiri (untuk kontributor)
 
-- **Device**: Power, Restart, Notifications, Quick Settings, Hide Panels,
-  Settings, Developer Options, About Phone, Clear Recents
-- **Clipboard**: PC → Phone, Phone → PC
-- **Files**: Screenshot (pull to a chosen folder), Push File
-- **Nav bar**: Recents / Home / Back
+Tauri **tidak bisa cross-compile** — tiap OS harus di-build di OS-nya sendiri
+(Windows di Windows, macOS di macOS, Linux di Linux).
 
-How it works: Droidbench acts as the scrcpy *client*. It pushes `scrcpy-server`
-to the device, opens an adb reverse tunnel, and reads the raw H.264 Annex-B
-stream (`send_frame_meta=false` for a clean bitstream). Each NAL unit is decoded
-with **OpenH264** to RGBA in Rust and blitted to a `<canvas>`. Input events are
-sent back through scrcpy's control socket.
+### 1. Prasyarat (semua OS)
 
-## Prerequisites (for building)
+- **Node.js 20+** dan npm
+- **Rust (stable)** via [rustup](https://rustup.rs)
+- **NASM** (untuk kompilasi OpenH264 dari source)
 
-- Node 20+ and npm
-- Rust (stable) via rustup
-- macOS: Xcode Command Line Tools
-- Windows: Microsoft C++ Build Tools + WebView2 (preinstalled on Win 11)
+Tambahan per-OS:
 
-OpenH264 is compiled from source via `cc` / `nasm-rs`; no system codec needed.
+- **macOS**: Xcode Command Line Tools (`xcode-select --install`),
+  [Homebrew](https://brew.sh) (untuk mem-bundel tool iOS).
+- **Windows**: Microsoft C++ Build Tools (Desktop C++) + WebView2 (sudah ada di
+  Win 11). NASM: `choco install nasm` atau installer resmi.
+- **Linux (Debian/Ubuntu)**:
+  ```bash
+  sudo apt-get update
+  sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev \
+    librsvg2-dev patchelf nasm build-essential curl wget file
+  ```
 
-## Setup
+### 2. Ambil dependensi
 
 ```bash
+git clone https://github.com/mhmmdadipur/droidbench.git
+cd droidbench
 npm install
-
-# generate debloat databases (committed; re-run to refresh)
-bash scripts/gen-databases.sh
-
-# fetch bundled adb/fastboot/scrcpy/scrcpy-server for your platform
-bash scripts/fetch-binaries.sh            # auto-detect
-bash scripts/fetch-binaries.sh win        # Windows .exe/.dll (when packaging for Windows)
 ```
 
-`heimdall` and `payload-dumper` are optional — drop their executables into
-`src-tauri/binaries/`. If a binary is not bundled, Droidbench resolves it from
-common install locations / PATH.
+### 3. Siapkan tool CLI yang dibundel
 
-## Develop / Build
+Binary CLI **tidak ikut di git** (terlalu besar / per-platform). Ambil dulu
+sesuai OS-mu:
 
 ```bash
-npm run tauri dev                 # hot-reload dev
-npm run tauri build               # .app + .dmg (macOS) / .msi + .exe (Windows)
-npm run tauri build -- --bundles app   # macOS .app only (skips dmg packaging)
+# adb, fastboot, scrcpy, scrcpy-server (otomatis sesuai OS)
+bash scripts/fetch-binaries.sh            # auto-detect
+# atau paksa platform saat packaging:
+bash scripts/fetch-binaries.sh mac
+bash scripts/fetch-binaries.sh win
+bash scripts/fetch-binaries.sh linux
 ```
 
-Tauri cannot cross-compile desktop apps — build the Windows installer on
-Windows (run `scripts/fetch-binaries.sh win` first) and the macOS bundle on
-macOS.
+Tool iOS (idevice*) butuh langkah khusus karena dynamically-linked:
 
-## Releases (hybrid: local macOS + CI Windows/Linux, one release)
+- **macOS** — install libimobiledevice lalu bundel + rewrite dylib ke dalam app:
+  ```bash
+  brew install libimobiledevice
+  bash scripts/bundle-imobiledevice-mac.sh    # → src-tauri/binaries/imd/
+  ```
+  (Dipanggil otomatis oleh `fetch-binaries.sh mac` bila libimobiledevice ada.)
+- **Windows** — `fetch-binaries.sh win` mengunduh build `imobiledevice-net`
+  (exe + DLL) ke `src-tauri/binaries/imd/`. Pengguna tetap perlu **Apple Mobile
+  Device Support** (driver USB; dari iTunes/Apple Devices).
+- **Linux** — `sudo apt install libimobiledevice-utils`, diresolusi dari sistem.
 
-To save CI minutes (the macOS runner costs 10× minutes), macOS is built locally
-and Windows/Linux are built by GitHub Actions — all into **one** release:
+Database debloat sudah ter-commit; untuk menyegarkan: `bash scripts/gen-databases.sh`.
 
-1. Bump `version` in `src-tauri/tauri.conf.json`.
-2. On your Mac: `bash scripts/release-mac.sh` → produces the `.dmg`.
-3. `git tag vX.Y.Z && git push origin vX.Y.Z` → the
-   [`release.yml`](.github/workflows/release.yml) workflow builds Windows + Linux
-   and creates the GitHub Release for that tag.
-4. Upload the local `.dmg` to that same release (web UI, or `gh release upload vX.Y.Z <dmg>`).
+### 4. Jalankan / build
 
-The release then contains `.dmg` (mac) + `.exe`/`.msi` (windows) +
-`.AppImage`/`.deb` (linux). On a **public repo**, GitHub Actions is free, and no
-macOS runner is used.
+```bash
+npm run tauri dev                      # mode dev (hot-reload)
+npm run tauri build                    # installer untuk OS saat ini
+npm run tauri build -- --bundles app   # macOS .app saja (lewati .dmg)
+```
+
+Hasil build:
+
+- **macOS** → `.app` + `.dmg` di `src-tauri/target/release/bundle/`
+- **Windows** → `.msi` + `.exe` (NSIS) — keduanya terdaftar di Add/Remove Programs
+- **Linux** → `.AppImage` + `.deb`
+
+### Verifikasi sebelum commit
+
+```bash
+npx tsc --noEmit                                  # type-check frontend
+npm run build                                     # bundle frontend
+cargo check --manifest-path src-tauri/Cargo.toml  # type-check Rust
+```
+
+---
+
+## Cermin Layar (cara kerja)
+
+Klik **Mirror Android Screen** → window terpisah berisi layar HP (klik/geser/
+scroll untuk mengontrol) + panel kontrol (Power, Notifikasi, Clipboard PC↔HP,
+Screenshot, Push File, nav Recents/Home/Back).
+
+Teknis: Droidbench jadi *client* scrcpy — push `scrcpy-server` ke HP, buka adb
+reverse tunnel, baca stream H.264 Annex-B (`send_frame_meta=false`), decode tiap
+NAL unit dengan **OpenH264** ke RGBA di Rust, kirim ke `<canvas>` lewat Tauri
+Channel (raw bytes, bukan base64 — rendah latensi). Input dikirim balik lewat
+control socket scrcpy.
+
+Mirror live **iOS** belum tersedia (butuh engine AirPlay/QuickTime yang belum
+layak dibundel lintas platform tanpa daemon root). Untuk iOS pakai **Tangkapan
+Layar** di tab Layar & Kontrol.
+
+## Rilis (hybrid, satu release untuk semua OS)
+
+Lihat [`.github/workflows/`](.github/workflows/). Windows & Linux dibangun CI;
+macOS dibangun CI juga (workflow `release-mac.yml`) **atau** lokal lewat
+`scripts/release-mac.sh`. Semua artifact (`.dmg`/`.app.tar.gz` mac,
+`.exe`/`.msi` windows, `.AppImage`/`.deb` linux) masuk ke **satu** GitHub Release
+per tag `vX.Y.Z`.
+
+Bump `version` di `src-tauri/tauri.conf.json` + `package.json`, lalu:
+
+```bash
+git tag vX.Y.Z && git push origin vX.Y.Z
+```
 
 ## Auto-update
 
-Droidbench uses Tauri's built-in updater. On launch it checks
-`https://github.com/mhmmdadipur/droidbench/releases/latest/download/latest.json`;
-if a newer **signed** version exists, an **Update → vX.Y.Z** button appears next
-to the version label. Clicking it downloads, verifies the signature, installs,
-and relaunches.
+Droidbench memakai updater bawaan Tauri. Saat start ia cek
+`releases/latest/download/latest.json`; bila ada versi **ber-tanda-tangan** yang
+lebih baru, tombol **Update → vX.Y.Z** muncul. Hanya paket yang ditandatangani
+yang dipasang.
 
-- **macOS / Windows**: silent download + install + restart.
-- **Linux (AppImage)**: the AppImage is replaced in place.
-
-### One-time setup (signing keys)
-
-The updater only installs **signed** packages. Generate a keypair once:
+Setup kunci (sekali):
 
 ```bash
 npm run tauri signer generate -- -w ~/.droidbench-keys/droidbench.key --password ''
 ```
 
-- The **public key** is already embedded in `src-tauri/tauri.conf.json`
-  (`plugins.updater.pubkey`). If you regenerate, update it.
-- The **private key** signs releases. Keep it secret (never commit it). Add it
-  to the repo's **GitHub secrets** for CI:
-  - `TAURI_SIGNING_PRIVATE_KEY` = contents of `~/.droidbench-keys/droidbench.key`
-  - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` = the password (empty here)
+- Public key sudah tertanam di `src-tauri/tauri.conf.json` (`plugins.updater.pubkey`).
+- Private key untuk CI → simpan di GitHub secrets:
+  - `TAURI_SIGNING_PRIVATE_KEY` = isi `~/.droidbench-keys/droidbench.key`
+  - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` = password (kosong di sini)
 
-### Publishing an update (hybrid)
-
-1. Bump `version` in `src-tauri/tauri.conf.json`.
-2. `bash scripts/release-mac.sh` → signed macOS `.dmg` + `.app.tar.gz` + `.sig`.
-3. `git tag vX.Y.Z && git push origin vX.Y.Z` → CI builds Windows/Linux and
-   writes `latest.json` (win+linux) to the release.
-4. Upload the macOS `.dmg`, `.app.tar.gz`, and `.app.tar.gz.sig` to that release.
-5. Merge the macOS entry into `latest.json`:
-   ```bash
-   node scripts/merge-latest-json.mjs latest.json \
-     src-tauri/target/release/bundle/macos/Droidbench.app.tar.gz.sig \
-     https://github.com/mhmmdadipur/droidbench/releases/download/vX.Y.Z/Droidbench.app.tar.gz \
-     > latest.merged.json
-   ```
-   Re-upload `latest.merged.json` as `latest.json` on the release.
-
-Now every platform auto-updates from one release.
-
-## Project layout
+## Struktur proyek
 
 ```
 src/
-  App.tsx                       layout shell + mirror-window routing (?view=mirror)
+  App.tsx                       shell layout + routing window (?view=mirror/explorer/setup)
   components/
-    TitleBar.tsx                macOS traffic-light window controls
-    DeviceStatus.tsx            device status card
-    ToolsBar.tsx                bundled/system/missing tool badges
-    LogPanel.tsx                searchable streaming log
-    tabs/*.tsx                  ADB / Fastboot / Xiaomi / Samsung / Dumper / Debloat
-    mirror/
-      MirrorView.tsx            canvas + control panel (live mirror)
-      MirrorTitleBar.tsx        white traffic-light title bar for the mirror window
-    ui/*.tsx                    Button, Section/Row
-  state/                        log / device / tools / mirror contexts
-  lib/                          api.ts, mirrorApi.ts, decoder helpers, useTools
+    DeviceStatus.tsx            kartu status perangkat (Android & iOS)
+    ToolsBar.tsx                ringkasan 7 tool + popup info
+    LogPanel.tsx                log streaming dengan pencarian
+    SetupWizard.tsx             panduan koneksi (Android & iOS)
+    LicenseModal.tsx            Terms + notice lisensi pihak ketiga
+    tabs/*.tsx                  Layar&Kontrol / Diagnostik / Aplikasi / Logcat / ...
+    tabs/IosTab.tsx             panel diagnostik iOS
+    mirror/*.tsx                window cermin layar + kontrol
+    ui/*.tsx                    Button, Modal, Section/Row
+  state/                        context: device / log / tools / diagnostic / iosDiagnostic / ...
+  lib/                          api.ts, mirrorApi.ts, diagnostics.ts, ...
+  i18n/                         en.ts + id.ts (kunci harus sama persis)
 src-tauri/
-  src/runner.rs                 process spawn + streaming + cancel + tool resolution
-  src/device.rs                 device detection
-  src/debloat.rs                load databases + list packages
-  src/mirror.rs                 scrcpy-server plumbing + OpenH264 decode + frame emit
-  src/control.rs                scrcpy control messages (touch/key/scroll/back)
-  databases/*.json              bundled debloat package lists
-  binaries/*                    bundled adb/fastboot/scrcpy/scrcpy-server
+  src/runner.rs                 spawn proses + streaming + resolusi tool
+  src/device.rs                 deteksi perangkat (adb/fastboot/heimdall/iOS)
+  src/ios.rs                    diagnostik iOS (ideviceinfo/idevicediagnostics) + screenshot
+  src/mirror.rs                 scrcpy + decode OpenH264 → frame
+  src/control.rs                pesan kontrol scrcpy
+  binaries/                     adb/fastboot/scrcpy (+ imd/ untuk tool iOS; tidak di-git)
+  licenses/                     teks lisensi pihak ketiga yang dibundel
+scripts/
+  fetch-binaries.sh             unduh adb/fastboot/scrcpy (+ iOS win)
+  bundle-imobiledevice-mac.sh   bundel idevice* + dylib ke binaries/imd (macOS)
+  gen-databases.{sh,mjs}        generate database debloat
+  release-mac.sh                build + sign mac untuk rilis
+  merge-latest-json.mjs         gabungkan latest.json lintas platform
 ```
 
-## Credits & licenses
+## Kredit & lisensi
 
-Debloat package data (MIT):
+Data debloat (MIT):
 
 - [MiDebloat-Remover](https://github.com/myruldev/MiDebloat-Remover) — myruldev
 - [Android-Universal-Debloat](https://github.com/myruldev/Android-Universal-Debloat) — myruldev
-- [tv-detox](https://github.com/Ansub/tv-detox) — Ansub (AI parts omitted)
+- [tv-detox](https://github.com/Ansub/tv-detox) — Ansub
 
-Bundled tools: Android platform-tools (adb/fastboot, Google),
-[scrcpy](https://github.com/Genymobile/scrcpy) (Genymobile), and
-[OpenH264](https://github.com/cisco/openh264) (Cisco) via the `openh264` crate.
+Tool & aplikasi yang dibundel (lihat `src-tauri/licenses/THIRD-PARTY-LICENSES.txt`):
 
-## Safety
+- Android platform-tools adb/fastboot (Google, Apache-2.0)
+- [scrcpy](https://github.com/Genymobile/scrcpy) (Genymobile, Apache-2.0)
+- [OpenH264](https://github.com/cisco/openh264) (Cisco) via crate `openh264`
+- [libimobiledevice](https://github.com/libimobiledevice/libimobiledevice) (LGPL-2.1) — tool iOS
+- [InjuredPixels](https://github.com/aurelitec/injuredpixels-android) (Apache-2.0) — APK tes layar
+- [Hardware Testing](https://github.com/rohanagarwal94/Hardware-testing) (MIT) — APK tes hardware
 
-Debloat uses `pm disable-user` — reversible, nothing is uninstalled. Flashing,
-unlocking bootloaders, and disabling verity can brick a device or void
-warranty. Use only on devices you own and understand. You are responsible for
-what you flash.
+Droidbench sendiri berlisensi **MIT**.
+
+## Keamanan & tanggung jawab
+
+Debloat memakai `pm disable-user` — reversible, tidak ada yang di-uninstall.
+Flashing, membuka bootloader, dan menonaktifkan verity bisa membuat perangkat
+brick atau menghanguskan garansi. Gunakan hanya pada perangkat milikmu sendiri.
+Kamu bertanggung jawab atas apa yang kamu lakukan. Semua fitur iOS bersifat
+**read-only** (tidak ada jailbreak, tidak mengubah perangkat).

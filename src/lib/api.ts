@@ -18,8 +18,8 @@ export interface CommandDone {
 
 export interface DeviceInfo {
   connected: boolean;
-  mode: "adb" | "fastboot" | "download" | "none";
-  adbState?: string; // "" | "unauthorized" | "offline"
+  mode: "adb" | "fastboot" | "download" | "ios" | "none";
+  adbState?: string; // "" | "unauthorized" | "offline" | "ios-untrusted"
   serial: string;
   brand: string;
   model: string;
@@ -67,6 +67,39 @@ export function cancelCommand(id?: string): Promise<void> {
 
 export function detectDevice(): Promise<DeviceInfo> {
   return invoke<DeviceInfo>("detect_device");
+}
+
+export interface IosReport {
+  udid: string;
+  device_name: string;
+  product_type: string;
+  marketing_name: string;
+  ios_version: string;
+  build_version: string;
+  serial: string;
+  imei: string;
+  region: string;
+  wifi_mac: string;
+  bluetooth_mac: string;
+  cpu_arch: string;
+  activation_state: string;
+  disk_total_bytes: number | null;
+  disk_free_bytes: number | null;
+  battery_percent: number | null;
+  battery_cycle_count: number | null;
+  battery_design_capacity: number | null;
+  battery_full_capacity: number | null;
+  battery_health_pct: number | null;
+}
+
+/** Full iOS device report (info + storage + battery) via libimobiledevice. */
+export function iosInfo(udid: string): Promise<IosReport> {
+  return invoke<IosReport>("ios_info", { udid });
+}
+
+/** Capture a screenshot from the iOS device into destDir; returns saved path. */
+export function iosScreenshot(udid: string, destDir: string): Promise<string> {
+  return invoke<string>("ios_screenshot", { udid, destDir });
 }
 
 export interface AdbDeviceEntry {

@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Smartphone,
   Layers,
+  Lightbulb,
 } from "lucide-react";
 import { Button } from "./ui/Button";
 import { useDevice } from "../state/device";
@@ -73,10 +74,12 @@ export function SetupWizard({ inWindow = false, onReady }: { inWindow?: boolean;
 
   const multi = list.length > 1;
 
-  // close once exactly one ready device appears — either by closing our own
-  // window (standalone mode) or signalling the parent modal to dismiss.
+  // close once exactly one ready device appears (Android adb OR iOS) — either
+  // by closing our own window (standalone) or signalling the parent modal.
   useEffect(() => {
-    if (device.connected && device.mode === "adb" && !multi) {
+    const ready =
+      device.connected && (device.mode === "adb" || device.mode === "ios");
+    if (ready && !multi) {
       if (inWindow) {
         (async () => {
           const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -88,14 +91,18 @@ export function SetupWizard({ inWindow = false, onReady }: { inWindow?: boolean;
     }
   }, [inWindow, onReady, device.connected, device.mode, multi]);
 
-  const state: "ready" | "unauthorized" | "offline" | "none" =
+  const state: "ready" | "ios-ready" | "ios-untrusted" | "unauthorized" | "offline" | "none" =
     device.connected && device.mode === "adb"
       ? "ready"
-      : device.adbState === "unauthorized"
-        ? "unauthorized"
-        : device.adbState === "offline"
-          ? "offline"
-          : "none";
+      : device.connected && device.mode === "ios"
+        ? "ios-ready"
+        : device.adbState === "ios-untrusted"
+          ? "ios-untrusted"
+          : device.adbState === "unauthorized"
+            ? "unauthorized"
+            : device.adbState === "offline"
+              ? "offline"
+              : "none";
 
   function restartLink() {
     push("Restarting ADB connection…", "system");
@@ -164,10 +171,23 @@ export function SetupWizard({ inWindow = false, onReady }: { inWindow?: boolean;
             ))}
           </div>
         </div>
-      ) : state === "ready" ? (
+      ) : state === "ready" || state === "ios-ready" ? (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-[14px] font-semibold text-emerald-700">
           <CheckCircle2 size={20} />
-          {t("setup.ready")}
+          {state === "ios-ready" ? t("setup.iosReady") : t("setup.ready")}
+        </div>
+      ) : state === "ios-untrusted" ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+          <Head icon={ShieldQuestion} title={t("setup.iosTrust.title")} tone="bg-amber-100 text-amber-600" />
+          <div className="flex flex-col gap-2.5">
+            <Step n={1} text={t("setup.iosTrust.1")} />
+            <Step n={2} text={t("setup.iosTrust.2")} />
+            <Step n={3} text={t("setup.iosTrust.3")} />
+          </div>
+          <p className="mt-3 flex items-start gap-1.5 rounded-md bg-[var(--color-bg)] px-2.5 py-1.5 text-[10.5px] leading-snug text-[var(--color-ink-faint)]">
+            <Lightbulb size={12} className="mt-[1px] shrink-0" />
+            <span>{t("setup.iosTrust.note")}</span>
+          </p>
         </div>
       ) : (
         <>
@@ -203,6 +223,9 @@ export function SetupWizard({ inWindow = false, onReady }: { inWindow?: boolean;
                 <Step n={2} text={t("setup.none.2")} />
                 <Step n={3} text={t("setup.none.3")} />
               </div>
+              <p className="mt-3 rounded-md bg-[var(--color-bg)] px-2.5 py-1.5 text-[10.5px] leading-snug text-[var(--color-ink-faint)]">
+                 {t("setup.none.ios")}
+              </p>
             </div>
           )}
 
@@ -239,8 +262,9 @@ export function SetupWizard({ inWindow = false, onReady }: { inWindow?: boolean;
                 <Step key={n} n={n} text={t(`setup.g.${activeOs}.${n}` as TKey)} />
               ))}
             </div>
-            <p className="mt-3 rounded-md bg-[var(--color-bg)] px-2.5 py-1.5 text-[10.5px] leading-snug text-[var(--color-ink-faint)]">
-              💡 {t("setup.devmode.note")}
+            <p className="mt-3 flex items-start gap-1.5 rounded-md bg-[var(--color-bg)] px-2.5 py-1.5 text-[10.5px] leading-snug text-[var(--color-ink-faint)]">
+              <Lightbulb size={12} className="mt-[1px] shrink-0" />
+              <span>{t("setup.devmode.note")}</span>
             </p>
           </div>
         </>

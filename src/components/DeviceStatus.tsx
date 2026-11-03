@@ -22,6 +22,7 @@ const modeLabel: Record<string, string> = {
   adb: "ADB",
   fastboot: "FASTBOOT",
   download: "DOWNLOAD",
+  ios: "iOS",
   none: "OFF",
 };
 
@@ -29,6 +30,7 @@ export function DeviceStatus() {
   const { device, refreshing, refresh } = useDevice();
   const { t } = useI18n();
   const online = device.connected;
+  const isIos = device.mode === "ios";
 
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
@@ -62,9 +64,16 @@ export function DeviceStatus() {
           value={online ? [device.brand, device.model].filter(Boolean).join(" ") || device.serial : t("common.noDevice")}
           strong
         />
-        <Field label={t("status.rom")} value={device.rom} />
-        <Field label={t("status.android")} value={device.android} />
-        <Field label={t("status.serial")} value={device.serial} />
+        {/* iOS devices: show "System = iOS x.y"; Android: ROM + Android version */}
+        {isIos ? (
+          <Field label={t("status.system")} value={device.rom || device.android} />
+        ) : (
+          <>
+            <Field label={t("status.rom")} value={device.rom} />
+            <Field label={t("status.android")} value={device.android} />
+          </>
+        )}
+        <Field label={isIos ? t("status.udid") : t("status.serial")} value={device.serial} />
       </div>
     </div>
   );

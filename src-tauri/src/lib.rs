@@ -1,6 +1,7 @@
 mod control;
 mod debloat;
 mod device;
+mod ios;
 mod mirror;
 mod runner;
 
@@ -26,6 +27,8 @@ pub fn run() {
             runner::install_apk,
             device::detect_device,
             device::list_devices,
+            ios::ios_info,
+            ios::ios_screenshot,
             debloat::load_debloat_db,
             debloat::list_installed_packages,
             debloat::list_disabled_packages,

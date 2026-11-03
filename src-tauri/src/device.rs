@@ -9,7 +9,7 @@ use crate::runner::{resolve_tool, run_capture_internal};
 #[derive(Clone, Serialize, Default)]
 pub struct DeviceInfo {
     pub connected: bool,
-    pub mode: String,   // "adb" | "fastboot" | "download" | "none"
+    pub mode: String,   // "adb" | "fastboot" | "download" | "ios" | "none"
     /// Raw adb connection state when a device is seen on USB but not ready:
     /// "" (ready/none) | "unauthorized" | "offline"
     #[serde(rename = "adbState")]
@@ -18,7 +18,7 @@ pub struct DeviceInfo {
     pub brand: String,
     pub model: String,
     pub android: String,
-    pub rom: String, // MIUI/HyperOS/OneUI version etc.
+    pub rom: String, // MIUI/HyperOS/OneUI version etc. (or iOS version for Apple)
 }
 
 #[derive(Clone, Serialize)]
@@ -63,6 +63,18 @@ async fn getprop(app: &AppHandle, prop: &str) -> String {
         app,
         "adb",
         &["shell".into(), "getprop".into(), prop.into()],
+    )
+    .await
+    .unwrap_or_default();
+    out.trim().to_string()
+}
+
+/// Read a single key from `ideviceinfo` (libimobiledevice) for the given UDID.
+async fn ideviceinfo_key(app: &AppHandle, udid: &str, key: &str) -> String {
+    let out = run_capture_internal(
+        app,
+        "ideviceinfo",
+        &["-u".into(), udid.into(), "-k".into(), key.into()],
     )
     .await
     .unwrap_or_default();
@@ -154,6 +166,36 @@ pub async fn detect_device(app: AppHandle) -> Result<DeviceInfo, String> {
                 info.model = rest.trim().to_string();
             }
         }
+        return Ok(info);
+    }
+
+    // 2b) iOS device via libimobiledevice (usbmux/lockdown, no jailbreak).
+    //     `idevice_id -l` lists UDIDs of attached & paired devices.
+    let ios_out = run_capture_internal(&app, "idevice_id", &["-l".into()])
+        .await
+        .unwrap_or_default();
+    if let Some(udid) = ios_out.lines().map(|l| l.trim()).find(|l| !l.is_empty()) {
+        // A UDID is listed, but the device may not be paired/trusted yet. A
+        // successful ideviceinfo read means "trusted"; otherwise treat it like
+        // an unauthorized Android device so the setup guide can explain "Trust".
+        let product = ideviceinfo_key(&app, udid, "ProductType").await;
+        if product.is_empty() {
+            info.mode = "none".into();
+            info.adb_state = "ios-untrusted".into();
+            info.serial = udid.to_string();
+            return Ok(info);
+        }
+        info.connected = true;
+        info.mode = "ios".into();
+        info.serial = udid.to_string();
+        info.brand = "Apple".into();
+        // Marketing name (e.g. "iPhone 13") when available, else ProductType.
+        let name = ideviceinfo_key(&app, udid, "DeviceName").await;
+        let marketing = ideviceinfo_key(&app, udid, "ProductType").await;
+        info.model = if !name.is_empty() { name } else { marketing };
+        let ios_ver = ideviceinfo_key(&app, udid, "ProductVersion").await;
+        info.android = ios_ver.clone(); // reuse field: OS version
+        info.rom = if ios_ver.is_empty() { "iOS".into() } else { format!("iOS {ios_ver}") };
         return Ok(info);
     }
 

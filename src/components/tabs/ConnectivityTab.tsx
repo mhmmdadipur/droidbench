@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Check } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Row, Section, TabHelp } from "../ui/Section";
 import { runCapture } from "../../lib/api";
@@ -127,7 +127,7 @@ export function ConnectivityTab() {
           p.host,
         ]);
       }
-      push(`✓ Private DNS changed to "${t(p.labelKey)}".`, "system");
+      push(`Private DNS changed to "${t(p.labelKey)}".`, "system");
       await readCurrent();
     } catch (e) {
       push(String(e), "stderr");
@@ -219,7 +219,7 @@ export function ConnectivityTab() {
               onClick={() => applyPreset(p)}
             >
               {t(p.labelKey)}
-              {active && " ✓"}
+              {active && <Check size={13} />}
             </Button>
           );
         })}

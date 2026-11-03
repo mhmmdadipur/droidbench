@@ -1,0 +1,72 @@
+name: Release (macOS)
+
+# Builds the macOS bundle (.dmg + updater .app.tar.gz + .sig) on a macOS runner
+# and attaches it to the SAME GitHub Release as the Windows/Linux workflow, so
+# one tag produces one cross-platform release.
+#
+# NOTE: macOS runners cost 10x CI minutes, but GitHub Actions is FREE with no
+# limit on PUBLIC repositories — so this is fine for an open-source project.
+# If you prefer to keep building macOS locally (scripts/release-mac.sh), you can
+# disable this workflow; the two approaches are interchangeable.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+permissions:
+  contents: write # needed to create/update the release
+
+jobs:
+  build-mac:
+    # Apple Silicon runner (arm64). Use macos-13 for an Intel/x86_64 build.
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (Apple Silicon)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install NASM (for OpenH264)
+        run: brew install nasm
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install frontend deps
+        run: npm install
+
+      - name: Bundle CLI binaries (adb/fastboot/scrcpy)
+        run: bash scripts/fetch-binaries.sh mac
+
+      - name: Bundle iOS tools (libimobiledevice + dylibs)
+        run: |
+          brew install libimobiledevice
+          bash scripts/bundle-imobiledevice-mac.sh
+
+      - name: Build + attach to release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater signing — same repository secrets as the Windows/Linux flow.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          # Reuse the tag's release so mac lands with windows + linux.
+          tagName: ${{ github.ref_name }}
+          releaseName: "Droidbench ${{ github.ref_name }}"
+          releaseDraft: false
+          prerelease: false
+          # aarch64 (Apple Silicon). Add x86_64 by also building on macos-13.
+          args: "--target aarch64-apple-darwin"

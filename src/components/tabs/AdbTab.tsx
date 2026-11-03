@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { Camera, Video, Square, Contact } from "lucide-react";
+import { Camera, Video, Square, Contact, Wifi, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Row, Section, TabHelp } from "../ui/Section";
 import { useTools } from "../../lib/useTools";
 import { useLog } from "../../state/log";
 import { useDevice } from "../../state/device";
 import { useI18n } from "../../i18n";
-import { runCapture } from "../../lib/api";
+import { runCapture, iosScreenshot } from "../../lib/api";
 
 export function AdbTab() {
   const t = useTools();
@@ -155,11 +156,109 @@ export function AdbTab() {
     });
   }
 
+  // iOS screen mirror — placeholder. The capture engine (AirPlay/UxPlay or
+  // QuickTime-USB) isn't wired up yet; this reserves the UI slot so iOS mirror
+  // lives in this tab alongside Android. For now it explains the status.
+  function startIosMirror() {
+    if (!device.connected || device.mode !== "ios") {
+      push(tr("ios.mirror.needs"), "stderr");
+      return;
+    }
+    push(tr("ios.mirror.soon"), "system");
+  }
+
+  // iOS screenshot — capture the iPhone/iPad screen to a PNG (read-only, works
+  // today via libimobiledevice). Lives here in Screen & Control.
+  const [iosShooting, setIosShooting] = useState(false);
+  const [iosShotPath, setIosShotPath] = useState<string | null>(null);
+  async function iosScreenshotNow() {
+    if (!device.connected || device.mode !== "ios") {
+      push(tr("ios.mirror.needs"), "stderr");
+      return;
+    }
+    const file = await save({
+      title: tr("ios.shot.save"),
+      defaultPath: "ios_screenshot.png",
+      filters: [{ name: "PNG", extensions: ["png"] }],
+    });
+    if (typeof file !== "string") return;
+    const dir = file.replace(/[/\\][^/\\]*$/, "");
+    setIosShooting(true);
+    push(tr("ios.shot.taking"), "system");
+    try {
+      const saved = await iosScreenshot(device.serial, dir);
+      setIosShotPath(saved);
+      push(tr("ios.shot.saved", { path: saved }), "system");
+    } catch (e) {
+      push(String(e), "stderr");
+    } finally {
+      setIosShooting(false);
+    }
+  }
+  async function revealIosShot() {
+    if (!iosShotPath) return;
+    try {
+      const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+      await revealItemInDir(iosShotPath);
+    } catch (e) {
+      push(String(e), "stderr");
+    }
+  }
+
+  const isIos = device.mode === "ios";
+
   return (
     <>
-      <TabHelp>{tr("adb.help")}</TabHelp>
+      {/* MIRROR — platform-neutral; both buttons always visible so users see
+          iOS is supported, each enabled for its device type. */}
+      <Section title={tr("mirror.section")}>
+        <Button
+          variant="violet"
+          size="block"
+          disabled={isIos || !(device.connected && device.mode === "adb")}
+          title={tr("adb.mirrorHint")}
+          onClick={startMirroring}
+        >
+          {tr("adb.mirror")}
+        </Button>
+        <Button
+          variant="violet"
+          size="block"
+          disabled={!isIos}
+          title={tr("ios.mirror.hint")}
+          onClick={startIosMirror}
+        >
+          {tr("ios.mirror.btn")}
+        </Button>
+        {isIos && (
+          <>
+            <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-[10.5px] leading-snug text-amber-700">
+              {tr("ios.mirror.note")}
+            </p>
+            <Button size="block" disabled={iosShooting} title={tr("ios.shot.hint")} onClick={iosScreenshotNow}>
+              {iosShooting ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+              {iosShooting ? tr("ios.shot.taking") : tr("ios.shot.take")}
+            </Button>
+            {iosShotPath && (
+              <>
+                <img
+                  src={convertFileSrc(iosShotPath)}
+                  alt="iOS screenshot"
+                  className="mt-1 max-h-[360px] w-full rounded-lg border border-[var(--color-border)] object-contain"
+                />
+                <Button size="sm" className="w-full" onClick={revealIosShot}>
+                  <ExternalLink size={13} />
+                  {tr("ios.shot.reveal")}
+                </Button>
+              </>
+            )}
+          </>
+        )}
+      </Section>
 
+      {/* ADB — Android-only connection control */}
       <Section title={tr("adb.conn")}>
+        <TabHelp>{tr("adb.help")}</TabHelp>
         <Row>
           <Button variant="success" title={tr("adb.startHint")} onClick={() => t.adb(["start-server"])}>
             {tr("adb.start")}
@@ -168,9 +267,6 @@ export function AdbTab() {
             {tr("adb.kill")}
           </Button>
         </Row>
-        <Button variant="violet" size="block" title={tr("adb.mirrorHint")} onClick={startMirroring}>
-          {tr("adb.mirror")}
-        </Button>
       </Section>
 
       <Section title={tr("adb.capture")}>
@@ -195,7 +291,7 @@ export function AdbTab() {
 
       <Section title={tr("adb.wireless")}>
         <div className="mb-1 flex items-start gap-2 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] leading-snug text-sky-800">
-          <span className="mt-[1px] shrink-0">📶</span>
+          <Wifi size={13} className="mt-[1px] shrink-0" />
           <span>{tr("adb.wirelessDesc")}</span>
         </div>
         <Row>
