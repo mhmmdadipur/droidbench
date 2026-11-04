@@ -3,9 +3,9 @@ name: Release (Windows + Linux)
 # Builds Windows and Linux installers when you push a version tag (e.g. v0.1.0)
 # and attaches them to the GitHub Release for that tag.
 #
-# macOS is built by a separate workflow (release-mac.yml) on a macOS runner and
-# uploaded to the SAME release, so one tag produces a single cross-platform
-# release: .dmg (mac) + .exe/.msi (windows) + .AppImage/.deb (linux).
+# macOS is built locally with scripts/release-mac.sh and uploaded to the SAME
+# release (release-mac.yml is a manual-only alternative), so one tag produces a
+# single cross-platform release: .dmg (mac) + .exe/.msi (windows) + .AppImage/.deb (linux).
 #
 # GitHub Actions is free with no limit on public repositories.
 

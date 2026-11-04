@@ -32,6 +32,8 @@ interface LogCtx {
   clear: () => void;
   /** Run a streaming command and track it as the active command. */
   run: (tool: string, args: string[], usePath?: boolean) => Promise<void>;
+  /** Track an already-started streaming command (by id) so cancel works. */
+  track: (id: string) => void;
   cancel: () => void;
 }
 
@@ -110,6 +112,11 @@ export function LogProvider({ children }: { children: ReactNode }) {
     }
   }, [push]);
 
+  const track = useCallback((id: string) => {
+    runningIdRef.current = id;
+    setRunningId(id);
+  }, []);
+
   const cancel = useCallback(() => {
     cancelCommand(runningIdRef.current ?? undefined);
     push("Command cancelled by user.", "system");
@@ -126,6 +133,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
         push,
         clear,
         run,
+        track,
         cancel,
       }}
     >

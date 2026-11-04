@@ -22,7 +22,15 @@ const latest = JSON.parse(readFileSync(ciPath, "utf8"));
 const signature = readFileSync(sigPath, "utf8").trim();
 
 latest.platforms = latest.platforms || {};
-// Apple Silicon. Add "x86_64-apple-darwin" too if you ship Intel builds.
-latest.platforms["aarch64-apple-darwin"] = { signature, url };
+// The updater looks up "{os}-{arch}-{bundle_type}" first, then "{os}-{arch}"
+// (tauri-plugin-updater, updater.rs). On Apple Silicon that is "darwin-aarch64-app"
+// then "darwin-aarch64" — NOT the Rust target triple. An entry keyed
+// "aarch64-apple-darwin" never matches, so macOS would never see an update.
+// Write both keys, exactly like tauri-action does for the other platforms.
+// Add "darwin-x86_64" / "darwin-x86_64-app" too if you ship Intel builds.
+latest.platforms["darwin-aarch64"] = { signature, url };
+latest.platforms["darwin-aarch64-app"] = { signature, url };
+// drop the wrong key written by earlier versions of this script, if present
+delete latest.platforms["aarch64-apple-darwin"];
 
 process.stdout.write(JSON.stringify(latest, null, 2) + "\n");

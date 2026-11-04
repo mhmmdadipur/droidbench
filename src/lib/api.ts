@@ -102,6 +102,41 @@ export function iosScreenshot(udid: string, destDir: string): Promise<string> {
   return invoke<string>("ios_screenshot", { udid, destDir });
 }
 
+export interface IosApp {
+  bundle_id: string;
+  name: string;
+  version: string;
+}
+
+/** Start a full device backup into destDir (streaming; returns command id). */
+export function iosBackup(udid: string, destDir: string): Promise<string> {
+  return invoke<string>("ios_backup", { udid, destDir });
+}
+/** Restore a backup from srcDir to the device (streaming; returns command id). */
+export function iosRestore(udid: string, srcDir: string, reboot: boolean): Promise<string> {
+  return invoke<string>("ios_restore", { udid, srcDir, reboot });
+}
+/** Stream the live device console log (returns command id; stop via cancelCommand). */
+export function iosSyslog(udid: string): Promise<string> {
+  return invoke<string>("ios_syslog", { udid });
+}
+/** Copy crash reports off the device into destDir (streaming; returns command id). */
+export function iosCrashReports(udid: string, destDir: string): Promise<string> {
+  return invoke<string>("ios_crash_reports", { udid, destDir });
+}
+/** List user-installed apps via ideviceinstaller. */
+export function iosListApps(udid: string): Promise<IosApp[]> {
+  return invoke<IosApp[]>("ios_list_apps", { udid });
+}
+/** Install a signed .ipa (streaming; returns command id). */
+export function iosInstallIpa(udid: string, ipaPath: string): Promise<string> {
+  return invoke<string>("ios_install_ipa", { udid, ipaPath });
+}
+/** Uninstall an app by bundle id (streaming; returns command id). */
+export function iosUninstallApp(udid: string, bundleId: string): Promise<string> {
+  return invoke<string>("ios_uninstall_app", { udid, bundleId });
+}
+
 export interface AdbDeviceEntry {
   serial: string;
   state: string; // "device" | "unauthorized" | "offline" | other
@@ -118,6 +153,10 @@ export function checkTools(): Promise<ToolStatus[]> {
 /** Install a bundled FOSS hardware-test APK by short id ("injuredpixels" | "hardware-test"). */
 export function installApk(which: string): Promise<string> {
   return invoke<string>("install_apk", { which });
+}
+/** Install an .xapk / .apkm / .apks bundle (streams progress to the log; returns the command id). */
+export function installXapk(path: string, grant: boolean, reinstall: boolean): Promise<string> {
+  return invoke<string>("install_xapk", { path, grant, reinstall });
 }
 
 export function loadDebloatDb(id: string): Promise<DebloatDatabase> {

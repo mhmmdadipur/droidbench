@@ -13,7 +13,7 @@ set -euo pipefail
 DEST="$(cd "$(dirname "$0")/.." && pwd)/src-tauri/binaries/imd"
 mkdir -p "$DEST"
 
-TOOLS=(idevice_id ideviceinfo idevicediagnostics idevicescreenshot)
+TOOLS=(idevice_id ideviceinfo idevicediagnostics idevicescreenshot idevicebackup2 idevicesyslog idevicecrashreport ideviceinstaller)
 
 # locate a source binary via Homebrew/PATH
 find_tool() {
@@ -52,17 +52,28 @@ gather() {
 
 echo "==> Collecting tools + dylib dependencies"
 SRC_BINS=()
+BUNDLED_TOOLS=()
 for t in "${TOOLS[@]}"; do
   src="$(find_tool "$t" || true)"
   if [ -z "$src" ]; then
+    # ideviceinstaller is a SEPARATE Homebrew formula (brew install
+    # ideviceinstaller) — don't make it fatal; just warn and skip so the core
+    # libimobiledevice tools still bundle.
+    if [ "$t" = "ideviceinstaller" ]; then
+      echo "!!  ideviceinstaller not found — skipping (install: brew install ideviceinstaller, then re-run)." >&2
+      continue
+    fi
     echo "!!  $t not found — run 'brew install libimobiledevice' first." >&2
     exit 1
   fi
   SRC_BINS+=("$src")
+  BUNDLED_TOOLS+=("$t")
   cp -f "$src" "$DEST/$t"
   chmod +x "$DEST/$t"
   gather "$src"
 done
+# from here on only operate on tools we actually bundled
+TOOLS=("${BUNDLED_TOOLS[@]}")
 
 echo "==> Copying ${#DEPS[@]} dylibs into binaries/"
 for lib in "${DEPS[@]}"; do

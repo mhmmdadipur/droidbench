@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { RefreshCw, Search, Store, PackagePlus } from "lucide-react";
+import { RefreshCw, Search, Store, PackagePlus, PackageOpen } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Row, Section, TabHelp } from "../ui/Section";
 import {
+  installXapk,
   listInstalledPackages,
   loadDebloatDb,
   runCapture,
@@ -30,7 +31,7 @@ const RISK_META: Record<RiskLevel, { labelKey: TKey; hintKey: TKey; cls: string 
 };
 
 export function AppManagerTab() {
-  const { push, run } = useLog();
+  const { push, run, track } = useLog();
   const { device } = useDevice();
   const { t } = useI18n();
   const am = useAppManager();
@@ -104,6 +105,24 @@ export function AppManagerTab() {
     // single file → install ; multiple → install-multiple (split APK app)
     const cmd = files.length > 1 ? "install-multiple" : "install";
     run("adb", [cmd, ...flags, ...files]);
+  }
+
+  // .xapk / .apkm / .apks: ZIP bundles with a base APK, split APKs and optional
+  // OBB files. Unpacked and installed by the backend; progress streams to the log.
+  async function installBundle() {
+    if (!guard()) return;
+    const picked = await open({
+      multiple: false,
+      filters: [{ name: "App bundle", extensions: ["xapk", "apkm", "apks"] }],
+    });
+    if (typeof picked !== "string") return;
+    push(t("app.install.bundleWorking"), "system");
+    try {
+      const id = await installXapk(picked, grantPerms, reinstall);
+      track(id);
+    } catch (e) {
+      push(String(e), "stderr");
+    }
   }
 
   async function uninstallApp(pkg: string) {
@@ -448,6 +467,10 @@ export function AppManagerTab() {
         <Button size="block" variant="primary" title={t("app.install.pickHint")} onClick={installApk}>
           <PackagePlus size={14} />
           {t("app.install.pick")}
+        </Button>
+        <Button size="block" title={t("app.install.bundleHint")} onClick={installBundle}>
+          <PackageOpen size={14} />
+          {t("app.install.bundle")}
         </Button>
         <p className="text-[10px] leading-snug text-[var(--color-ink-faint)]">{t("app.install.bundleNote")}</p>
       </Section>

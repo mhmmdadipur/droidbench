@@ -12,7 +12,7 @@
 #   3) git tag vX.Y.Z && git push origin vX.Y.Z
 #        -> CI builds Windows+Linux, creates the release, writes latest.json
 #   4) upload the macOS .dmg AND .app.tar.gz(.sig) to that release
-#   5) merge the macOS entry into latest.json (see scripts/merge-latest-json.md)
+#   5) merge the macOS entry into latest.json (scripts/merge-latest-json.mjs)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -41,4 +41,4 @@ ls -1 "$BUNDLE/macos/"*.app.tar.gz.sig 2>/dev/null || true
 echo
 echo "Next:"
 echo "  gh release upload <tag> $BUNDLE/dmg/*.dmg $BUNDLE/macos/*.app.tar.gz $BUNDLE/macos/*.app.tar.gz.sig"
-echo "  then merge the macOS entry into latest.json (see scripts/merge-latest-json.md)"
+echo "  then merge the macOS entry into latest.json (node scripts/merge-latest-json.mjs ...)"

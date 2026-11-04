@@ -120,7 +120,7 @@ if [ "$PLATFORM" = "win" ]; then
     mkdir -p "$TMP/imd"
     unzip -o -q "$TMP/imd.zip" -d "$TMP/imd"
     # copy the idevice*.exe tools we use + every DLL they need into binaries/imd/
-    for exe in idevice_id ideviceinfo idevicediagnostics idevicescreenshot; do
+    for exe in idevice_id ideviceinfo idevicediagnostics idevicescreenshot idevicebackup2 idevicesyslog idevicecrashreport ideviceinstaller; do
       f="$(find "$TMP/imd" -name "$exe.exe" | head -1)"
       [ -n "$f" ] && cp "$f" "$IMD_DEST/" && echo "    + $exe.exe"
     done
@@ -158,6 +158,16 @@ else
       echo "  sudo apt install libimobiledevice-utils  (or your distro's package)"
       ;;
   esac
+fi
+
+# tauri.conf.json bundles "binaries/imd/*". A glob that matches nothing makes
+# tauri-build fail ("path not found or didn't match any files"), and only macOS
+# (via bundle-imobiledevice-mac.sh) and Windows (when the download works) put files
+# here. So make sure the folder is never empty, on every platform.
+mkdir -p "$DEST/imd"
+if [ -z "$(ls -A "$DEST/imd" 2>/dev/null)" ]; then
+  echo "No iOS (libimobiledevice) tools are bundled in this build; Droidbench falls back to any system install." > "$DEST/imd/README.txt"
+  echo "==> binaries/imd/ was empty: wrote a placeholder so the bundle step does not fail."
 fi
 
 echo

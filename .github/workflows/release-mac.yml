@@ -4,16 +4,16 @@ name: Release (macOS)
 # and attaches it to the SAME GitHub Release as the Windows/Linux workflow, so
 # one tag produces one cross-platform release.
 #
-# NOTE: macOS runners cost 10x CI minutes, but GitHub Actions is FREE with no
-# limit on PUBLIC repositories — so this is fine for an open-source project.
-# If you prefer to keep building macOS locally (scripts/release-mac.sh), you can
-# disable this workflow; the two approaches are interchangeable.
+# MANUAL ONLY. The project's release flow builds macOS locally with
+# scripts/release-mac.sh and uploads it to the release. This workflow used to run
+# on every version tag as well, which meant two different macOS builds raced to
+# upload same-named files to the same release and latest.json could end up with a
+# signature that no longer matches the uploaded .app.tar.gz (breaking auto-update).
+# Run it from the Actions tab only if you want a CI-built macOS bundle INSTEAD of
+# the local one (and then do not run scripts/release-mac.sh for that tag).
 
 on:
-  push:
-    tags:
-      - "v*"
-  workflow_dispatch: {} # allow manual runs from the Actions tab
+  workflow_dispatch: {}
 
 permissions:
   contents: write # needed to create/update the release

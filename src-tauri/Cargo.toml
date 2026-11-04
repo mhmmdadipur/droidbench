@@ -34,7 +34,11 @@ uuid = { version = "1", features = ["v4"] }
 # H.264 software decoding on the Rust side (reliable across all platforms,
 # independent of WebView WebCodecs/WASM support)
 openh264 = "0.9"
-
+# unzip .xapk / .apkm / .apks app bundles (deflate only: no extra codec deps)
+zip = { version = "9.3.0", default-features = false, features = ["deflate"] }
+# native PC clipboard (text only) for mirror copy/paste — WebView clipboard APIs
+# are unreliable/permission-gated, especially in WKWebView on macOS
+arboard = { version = "3.7.0", default-features = false }
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

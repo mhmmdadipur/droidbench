@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Smartphone,
   Zap,
-  Boxes,
-  PackageOpen,
   FolderOpen,
   RefreshCw,
   HelpCircle,
@@ -15,6 +13,9 @@ import {
   Wrench,
   Scale,
   MonitorSmartphone,
+  Apple,
+  ShieldCheck,
+  HardDriveDownload,
 } from "lucide-react";
 import { TitleBar } from "./components/TitleBar";
 import { DeviceStatus } from "./components/DeviceStatus";
@@ -25,10 +26,17 @@ import { MirrorView } from "./components/mirror/MirrorView";
 import { MirrorTitleBar } from "./components/mirror/MirrorTitleBar";
 import { FileExplorer } from "./components/explorer/FileExplorer";
 import { AdbTab } from "./components/tabs/AdbTab";
+import { IosToolsTab } from "./components/tabs/IosToolsTab";
 import { FastbootTab } from "./components/tabs/FastbootTab";
 import { XiaomiTab } from "./components/tabs/XiaomiTab";
 import { SamsungTab } from "./components/tabs/SamsungTab";
 import { DumperTab } from "./components/tabs/DumperTab";
+import { RootTab } from "./components/tabs/RootTab";
+import { CustomRomTab } from "./components/tabs/CustomRomTab";
+import { BrandTab } from "./components/tabs/BrandTab";
+import { onMirrorStopped } from "./lib/mirrorApi";
+import { BRANDS } from "./lib/brandGuides";
+import { brandIconFor, SamsungIcon, XiaomiIcon, type IconComponent } from "./components/ui/BrandIcons";
 import { DiagnosticTab } from "./components/tabs/DiagnosticTab";
 import { ConnectivityTab } from "./components/tabs/ConnectivityTab";
 import { AppManagerTab } from "./components/tabs/AppManagerTab";
@@ -42,12 +50,15 @@ import { DiagnosticProvider } from "./state/diagnostic";
 import { ConnectivityProvider } from "./state/connectivity";
 import { AppManagerProvider } from "./state/appmanager";
 import { IosDiagnosticProvider } from "./state/iosDiagnostic";
+import { IosToolsProvider } from "./state/iosTools";
+import { FlashingProvider, useFlashing } from "./state/flashing";
 import { I18nProvider, useI18n, type TKey } from "./i18n";
 import { LicenseModal, hasAcceptedTerms } from "./components/LicenseModal";
 import { Modal } from "./components/ui/Modal";
 
 type TabId =
   | "adb"
+  | "iostools"
   | "diagnostic"
   | "appmanager"
   | "logcat"
@@ -56,20 +67,51 @@ type TabId =
   | "fastboot"
   | "xiaomi"
   | "samsung"
-  | "dumper";
+  | "dumper"
+  | "root"
+  | "customrom"
+  | `brand-${string}`;
 
 type TabGroup = "device" | "flashing";
 
-const TABS: { id: TabId; labelKey: TKey; icon: typeof Smartphone; descKey: TKey; group: TabGroup }[] = [
+interface TabDef {
+  id: TabId;
+  /** lucide icon or a brand logo (both take size / className) */
+  icon: IconComponent;
+  descKey: TKey;
+  group: TabGroup;
+  /** i18n label for the built-in tabs … */
+  labelKey?: TKey;
+  /** … or a literal label (brand names are proper nouns, same in every language). */
+  label?: string;
+}
+
+const tabLabel = (tb: TabDef, t: (k: TKey) => string): string => tb.label ?? (tb.labelKey ? t(tb.labelKey) : tb.id);
+
+// One tab per brand (everything except Samsung and Xiaomi, which have their
+// own dedicated tabs) so every brand gets the same guided flow.
+const BRAND_TABS: TabDef[] = BRANDS.map((b) => ({
+  id: `brand-${b.id}` as const,
+  label: b.name,
+  icon: brandIconFor(b.id) ?? Smartphone,
+  descKey: `brands.tag.${b.unlockSupport}` as const,
+  group: "flashing" as const,
+}));
+
+const TABS: TabDef[] = [
   { id: "adb", labelKey: "tab.adb", icon: MonitorSmartphone, descKey: "tab.adb.desc", group: "device" },
+  { id: "iostools", labelKey: "tab.iostools", icon: Apple, descKey: "tab.iostools.desc", group: "device" },
   { id: "diagnostic", labelKey: "tab.diagnostic", icon: Stethoscope, descKey: "tab.diagnostic.desc", group: "device" },
   { id: "appmanager", labelKey: "tab.appmanager", icon: LayoutGrid, descKey: "tab.appmanager.desc", group: "device" },
   { id: "logcat", labelKey: "tab.logcat", icon: ScrollText, descKey: "tab.logcat.desc", group: "device" },
   { id: "connectivity", labelKey: "tab.connectivity", icon: Wifi, descKey: "tab.connectivity.desc", group: "device" },
   { id: "developer", labelKey: "tab.developer", icon: Wrench, descKey: "tab.developer.desc", group: "device" },
   { id: "fastboot", labelKey: "tab.fastboot", icon: Zap, descKey: "tab.fastboot.desc", group: "flashing" },
-  { id: "xiaomi", labelKey: "tab.xiaomi", icon: Boxes, descKey: "tab.xiaomi.desc", group: "flashing" },
-  { id: "samsung", labelKey: "tab.samsung", icon: PackageOpen, descKey: "tab.samsung.desc", group: "flashing" },
+  { id: "xiaomi", labelKey: "tab.xiaomi", icon: XiaomiIcon, descKey: "tab.xiaomi.desc", group: "flashing" },
+  { id: "samsung", labelKey: "tab.samsung", icon: SamsungIcon, descKey: "tab.samsung.desc", group: "flashing" },
+  ...BRAND_TABS,
+  { id: "customrom", labelKey: "tab.customrom", icon: HardDriveDownload, descKey: "tab.customrom.desc", group: "flashing" },
+  { id: "root", labelKey: "tab.root", icon: ShieldCheck, descKey: "tab.root.desc", group: "flashing" },
   { id: "dumper", labelKey: "tab.dumper", icon: Download, descKey: "tab.dumper.desc", group: "flashing" },
 ];
 
@@ -79,9 +121,12 @@ const GROUPS: { id: TabGroup; labelKey: TKey; hintKey: TKey }[] = [
 ];
 
 function TabContent({ tab }: { tab: TabId }) {
+  if (tab.startsWith("brand-")) return <BrandTab brandId={tab.slice("brand-".length)} />;
   switch (tab) {
     case "adb":
       return <AdbTab />;
+    case "iostools":
+      return <IosToolsTab />;
     case "diagnostic":
       return <DiagnosticTab />;
     case "appmanager":
@@ -100,7 +145,12 @@ function TabContent({ tab }: { tab: TabId }) {
       return <SamsungTab />;
     case "dumper":
       return <DumperTab />;
+    case "root":
+      return <RootTab />;
+    case "customrom":
+      return <CustomRomTab />;
   }
+  return null;
 }
 
 function BottomToolbar() {
@@ -172,7 +222,16 @@ function Shell() {
   const [group, setGroup] = useState<TabGroup>("device");
   const { t } = useI18n();
   const { device } = useDevice();
-  // first-run terms / third-party notices popup (shown once)
+  const { registerNavigator } = useFlashing();
+  // let tabs navigate to other tabs (e.g. Xiaomi step 3 → Custom ROM tab)
+  useEffect(() => {
+    registerNavigator((target) => {
+      const dest = TABS.find((tb) => tb.id === target);
+      if (!dest) return;
+      setGroup(dest.group);
+      setTab(dest.id);
+    });
+  }, [registerNavigator]);
   const [showTerms, setShowTerms] = useState(() => !hasAcceptedTerms());
   const activeTab = TABS.find((t) => t.id === tab);
   const groupTabs = TABS.filter((tb) => tb.group === group);
@@ -270,7 +329,7 @@ function Shell() {
                           active ? "text-[var(--color-brand-600)]" : "text-[var(--color-ink)]"
                         }`}
                       >
-                        {t(tb.labelKey)}
+                        {tabLabel(tb, t)}
                       </span>
                       <span className="block truncate text-[10.5px] leading-tight text-[var(--color-ink-faint)]">
                         {t(tb.descKey)}
@@ -292,10 +351,10 @@ function Shell() {
           <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
             {activeTab && <activeTab.icon size={16} className="text-[var(--color-brand-600)]" />}
             <span className="text-[13px] font-semibold text-[var(--color-ink)]">
-              {activeTab && t(activeTab.labelKey)}
+              {activeTab && tabLabel(activeTab, t)}
             </span>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto p-4">
+          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-scroll p-4">
             {needsSetup && <ConnectBanner onOpen={() => setShowSetup(true)} />}
             <TabContent tab={tab} />
           </div>
@@ -389,6 +448,39 @@ function SetupTrafficLights() {
 
 /** Standalone page shown in the separate mirror window. */
 function MirrorPage() {
+  const { device, refresh } = useDevice();
+  const seenDevice = useRef(false);
+
+  // The mirror window is useless without its phone: close it when the phone is
+  // unplugged. `seenDevice` keeps a window opened with no phone from closing itself,
+  // and the delay stops one failed poll from closing a healthy session.
+  useEffect(() => {
+    if (device.connected && device.mode === "adb") seenDevice.current = true;
+  }, [device.connected, device.mode]);
+  useEffect(() => {
+    if (!seenDevice.current || device.connected) return;
+    const id = window.setTimeout(() => void close(), 3000);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [device.connected]);
+  // The video stream ending on its own usually means the cable was pulled: re-check
+  // now instead of waiting up to 5 s for the next poll.
+  useEffect(() => {
+    let un: (() => void) | undefined;
+    let dead = false;
+    onMirrorStopped(() => {
+      refresh();
+      window.setTimeout(refresh, 1500);
+    }).then((u) => {
+      if (dead) u();
+      else un = u;
+    });
+    return () => {
+      dead = true;
+      un?.();
+    };
+  }, [refresh]);
+
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let destroyed = false;
@@ -476,7 +568,11 @@ export default function App() {
                 <ConnectivityProvider>
                   <AppManagerProvider>
                     <IosDiagnosticProvider>
-                      <Shell />
+                      <IosToolsProvider>
+                        <FlashingProvider>
+                          <Shell />
+                        </FlashingProvider>
+                      </IosToolsProvider>
                     </IosDiagnosticProvider>
                   </AppManagerProvider>
                 </ConnectivityProvider>
