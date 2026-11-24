@@ -16,6 +16,7 @@ import {
   Apple,
   ShieldCheck,
   HardDriveDownload,
+  Terminal,
 } from "lucide-react";
 import { TitleBar } from "./components/TitleBar";
 import { DeviceStatus } from "./components/DeviceStatus";
@@ -42,6 +43,7 @@ import { ConnectivityTab } from "./components/tabs/ConnectivityTab";
 import { AppManagerTab } from "./components/tabs/AppManagerTab";
 import { LogcatTab } from "./components/tabs/LogcatTab";
 import { DeveloperTab } from "./components/tabs/DeveloperTab";
+import { TerminalTab } from "./components/tabs/TerminalTab";
 import { DeviceProvider, useDevice } from "./state/device";
 import { LogProvider, useLog } from "./state/log";
 import { ToolsProvider } from "./state/tools";
@@ -51,6 +53,7 @@ import { ConnectivityProvider } from "./state/connectivity";
 import { AppManagerProvider } from "./state/appmanager";
 import { IosDiagnosticProvider } from "./state/iosDiagnostic";
 import { IosToolsProvider } from "./state/iosTools";
+import { TerminalProvider } from "./state/terminal";
 import { FlashingProvider, useFlashing } from "./state/flashing";
 import { I18nProvider, useI18n, type TKey } from "./i18n";
 import { LicenseModal, hasAcceptedTerms } from "./components/LicenseModal";
@@ -64,6 +67,7 @@ type TabId =
   | "logcat"
   | "connectivity"
   | "developer"
+  | "terminal"
   | "fastboot"
   | "xiaomi"
   | "samsung"
@@ -106,6 +110,7 @@ const TABS: TabDef[] = [
   { id: "logcat", labelKey: "tab.logcat", icon: ScrollText, descKey: "tab.logcat.desc", group: "device" },
   { id: "connectivity", labelKey: "tab.connectivity", icon: Wifi, descKey: "tab.connectivity.desc", group: "device" },
   { id: "developer", labelKey: "tab.developer", icon: Wrench, descKey: "tab.developer.desc", group: "device" },
+  { id: "terminal", labelKey: "tab.terminal", icon: Terminal, descKey: "tab.terminal.desc", group: "device" },
   { id: "fastboot", labelKey: "tab.fastboot", icon: Zap, descKey: "tab.fastboot.desc", group: "flashing" },
   { id: "xiaomi", labelKey: "tab.xiaomi", icon: XiaomiIcon, descKey: "tab.xiaomi.desc", group: "flashing" },
   { id: "samsung", labelKey: "tab.samsung", icon: SamsungIcon, descKey: "tab.samsung.desc", group: "flashing" },
@@ -137,6 +142,8 @@ function TabContent({ tab }: { tab: TabId }) {
       return <ConnectivityTab />;
     case "developer":
       return <DeveloperTab />;
+    case "terminal":
+      return <TerminalTab />;
     case "fastboot":
       return <FastbootTab />;
     case "xiaomi":
@@ -570,7 +577,9 @@ export default function App() {
                     <IosDiagnosticProvider>
                       <IosToolsProvider>
                         <FlashingProvider>
-                          <Shell />
+                          <TerminalProvider>
+                            <Shell />
+                          </TerminalProvider>
                         </FlashingProvider>
                       </IosToolsProvider>
                     </IosDiagnosticProvider>

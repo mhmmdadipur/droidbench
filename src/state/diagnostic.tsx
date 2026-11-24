@@ -39,11 +39,10 @@ export function DiagnosticProvider({ children }: { children: ReactNode }) {
   // Clear the report + checklist when the device disconnects: the results are
   // only meaningful for the phone that was actually plugged in.
   useEffect(() => {
-    if (!device.connected) {
-      setReport(null);
-      setChecksState({});
-    }
-  }, [device.connected]);
+    // (also when another phone is picked: serial changes while connected stays true)
+    setReport(null);
+    setChecksState({});
+  }, [device.connected, device.serial]);
 
   return (
     <Ctx.Provider value={{ report, setReport, checks, setCheck, clear }}>

@@ -26,8 +26,8 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
   const [current, setCurrent] = useState<DnsStatus | null>(null);
 
   useEffect(() => {
-    if (!device.connected) setCurrent(null);
-  }, [device.connected]);
+    setCurrent(null); // unplugged, or another phone was picked
+  }, [device.connected, device.serial]);
 
   return <Ctx.Provider value={{ current, setCurrent }}>{children}</Ctx.Provider>;
 }

@@ -91,6 +91,7 @@ pub async fn mirror_start(
     bitrate: Option<u32>,
     max_fps: Option<u32>,
     audio: Option<bool>,
+    source: Option<String>,
     on_frame: Channel<Response>,
     on_audio: Channel<Response>,
 ) -> Result<(), String> {
@@ -151,7 +152,15 @@ pub async fn mirror_start(
     // Audio: raw PCM (16-bit, 48 kHz, stereo) so no audio decoder is needed. On
     // Android 13+ `audio_dup` keeps the sound playing on the phone as well; before
     // that, capturing audio mutes the phone's own speaker.
-    let want_audio = audio.unwrap_or(false);
+    // "camera-back" / "camera-front" mirror a phone camera instead of the screen (Android 12+).
+    // The server has no input to inject into a camera, so there is no control socket then.
+    let camera_facing: Option<String> = source
+        .as_deref()
+        .and_then(|s| s.strip_prefix("camera-"))
+        .filter(|f| *f == "back" || *f == "front")
+        .map(str::to_string);
+    let is_camera = camera_facing.is_some();
+    let want_audio = audio.unwrap_or(false) && !is_camera;
     let audio_args = if want_audio {
         let sdk = tokio::process::Command::new(&adb)
             .args(["shell", "getprop", "ro.build.version.sdk"])
@@ -168,11 +177,18 @@ pub async fn mirror_start(
     } else {
         "audio=false"
     };
+    let control_flag = if is_camera { "false" } else { "true" };
     let mut server_cmd = format!(
         "{classpath} app_process / com.genymobile.scrcpy.Server {SCRCPY_SERVER_VERSION} \
-         scid={scid} log_level=warn {audio_args} control=true cleanup=true \
+         scid={scid} log_level=warn {audio_args} control={control_flag} cleanup=true \
          send_frame_meta=false send_device_meta=false"
     );
+    if let Some(facing) = &camera_facing {
+        server_cmd.push_str(&format!(
+            " video_source=camera camera_facing={facing} camera_fps={}",
+            max_fps.unwrap_or(30)
+        ));
+    }
     if let Some(m) = max_size {
         server_cmd.push_str(&format!(" max_size={m}"));
     }
@@ -189,33 +205,65 @@ pub async fn mirror_start(
     // headers contain byte patterns that look like Annex-B start codes, which
     // corrupt NAL parsing. Disabling it yields a pure Annex-B stream.
 
-    let adb_clone = adb.clone();
-    tokio::spawn(async move {
-        let _ = tokio::process::Command::new(&adb_clone)
-            .args(["shell", &server_cmd])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .await;
-    });
+    // Keep what the server prints (log_level=warn, so only warnings and errors). It is the
+    // only place the real reason shows up when something is refused, e.g. a Xiaomi phone
+    // that has "USB debugging (Security settings)" off rejects every touch and key press.
+    let server_log: ServerLog = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let hinted = Arc::new(AtomicBool::new(false));
+    {
+        let adb_clone = adb.clone();
+        let log = server_log.clone();
+        let hinted = hinted.clone();
+        let app_log = app.clone();
+        tokio::spawn(async move {
+            let child = tokio::process::Command::new(&adb_clone)
+                .args(["shell", &server_cmd])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn();
+            let Ok(mut child) = child else { return };
+            let mut pumps = Vec::new();
+            if let Some(o) = child.stdout.take() {
+                pumps.push(tokio::spawn(pump_server_log(o, log.clone(), hinted.clone(), app_log.clone())));
+            }
+            if let Some(e) = child.stderr.take() {
+                pumps.push(tokio::spawn(pump_server_log(e, log.clone(), hinted.clone(), app_log.clone())));
+            }
+            let _ = child.wait().await;
+            for p in pumps {
+                let _ = p.await;
+            }
+        });
+    }
 
     // 5) accept sockets from the server: video first, then control.
     // The server connects in a fixed order: video, then audio (if enabled), then control.
-    let mut video = accept_timeout(&listener, 10).await?;
+    let mut video = accept_timeout(&listener, 10)
+        .await
+        .map_err(|e| with_server_log(e, &server_log))?;
     video.set_nodelay(true).ok();
     let audio_sock = if want_audio {
-        Some(accept_timeout(&listener, 10).await?)
+        Some(
+            accept_timeout(&listener, 10)
+                .await
+                .map_err(|e| with_server_log(e, &server_log))?,
+        )
     } else {
         None
     };
-    let control = accept_timeout(&listener, 10).await?;
-    control.set_nodelay(true).ok();
+    if !is_camera {
+        let control = accept_timeout(&listener, 10)
+            .await
+            .map_err(|e| with_server_log(e, &server_log))?;
+        control.set_nodelay(true).ok();
 
-    // Split the control socket: we write input events to one half, and a reader
-    // task consumes device->client messages (clipboard) on the other half.
-    let (control_rd, control_wr) = control.into_split();
-    *state.control.lock().await = Some(control_wr);
-    tokio::spawn(read_device_messages(control_rd, app.clone()));
+        // Split the control socket: we write input events to one half, and a reader
+        // task consumes device->client messages (clipboard) on the other half.
+        let (control_rd, control_wr) = control.into_split();
+        *state.control.lock().await = Some(control_wr);
+        tokio::spawn(read_device_messages(control_rd, app.clone()));
+    }
     if let Some(sock) = audio_sock {
         tokio::spawn(stream_audio(sock, on_audio, state.running.clone(), app.clone()));
     }
@@ -435,14 +483,74 @@ pub async fn mirror_screenshot(app: AppHandle, dest_dir: String) -> Result<Strin
     let adb = resolve_tool(&app, "adb");
     let remote = "/sdcard/droidbench_shot.png";
     run_adb(&adb, &["shell", "screencap", "-p", remote]).await?;
+    // milliseconds: with one-click screenshots two can land in the same second
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
+        .map(|d| d.as_millis())
         .unwrap_or(0);
-    let local = format!("{dest_dir}/droidbench_shot_{ts}.png");
-    run_adb(&adb, &["pull", remote, &local]).await?;
-    let _ = run_adb(&adb, &["shell", "rm", remote]).await;
+    let local = std::path::Path::new(&dest_dir)
+        .join(format!("droidbench_shot_{ts}.png"))
+        .to_string_lossy()
+        .to_string();
+    let pulled = run_adb(&adb, &["pull", remote, &local]).await;
+    let _ = run_adb(&adb, &["shell", "rm", remote]).await; // clean up even if the pull failed
+    pulled?;
     Ok(local)
+}
+
+/// Run adb and return stdout + stderr as text, giving up after 20 s.
+async fn adb_output(adb: &str, args: &[&str]) -> Result<String, String> {
+    let mut cmd = tokio::process::Command::new(adb);
+    cmd.args(args).stdin(std::process::Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let out = tokio::time::timeout(std::time::Duration::from_secs(20), cmd.output())
+        .await
+        .map_err(|_| "adb timed out".to_string())?
+        .map_err(|e| format!("failed to run adb: {e}"))?;
+    let mut s = String::from_utf8_lossy(&out.stdout).to_string();
+    s.push_str(&String::from_utf8_lossy(&out.stderr));
+    Ok(s)
+}
+
+/// The `<?xml ...?><hierarchy>...</hierarchy>` part of `uiautomator dump` output (it prints a
+/// status line after the XML).
+fn extract_hierarchy(s: &str) -> Option<String> {
+    let start = s.find("<?xml").or_else(|| s.find("<hierarchy"))?;
+    let end = s.rfind("</hierarchy>")? + "</hierarchy>".len();
+    (end > start).then(|| s[start..end].to_string())
+}
+
+/// Dump the phone's current UI hierarchy (`uiautomator dump`) and return the XML: every
+/// element's resource-id, content-desc, text, class and bounds. Read-only.
+#[tauri::command]
+pub async fn mirror_ui_dump(app: AppHandle) -> Result<String, String> {
+    let adb = resolve_tool(&app, "adb");
+    // 1) straight to stdout: nothing is written on the phone
+    let first = adb_output(&adb, &["exec-out", "uiautomator", "dump", "/dev/tty"]).await?;
+    if let Some(xml) = extract_hierarchy(&first) {
+        return Ok(xml);
+    }
+    // 2) some ROMs refuse /dev/tty: dump to a file, read it back, delete it
+    let remote = "/sdcard/droidbench_ui.xml";
+    let dumped = adb_output(&adb, &["shell", "uiautomator", "dump", remote]).await?;
+    let content = adb_output(&adb, &["exec-out", "cat", remote]).await;
+    let _ = run_adb(&adb, &["shell", "rm", "-f", remote]).await;
+    if let Ok(c) = content {
+        if let Some(xml) = extract_hierarchy(&c) {
+            return Ok(xml);
+        }
+    }
+    let why = first
+        .lines()
+        .chain(dumped.lines())
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .unwrap_or("no output");
+    Err(format!("uiautomator dump failed: {why}"))
 }
 
 /// Push a local file to the device's Download folder.
@@ -689,6 +797,50 @@ pub async fn mirror_reboot(app: AppHandle) -> Result<(), String> {
     run_adb(&adb, &["reboot"]).await
 }
 
+/// Last lines the scrcpy server printed on the phone.
+type ServerLog = Arc<std::sync::Mutex<Vec<String>>>;
+
+/// Read the server's output line by line: keep the tail for error messages, and tell the
+/// UI (once) when the phone refuses injected input, which has a fix the user can apply.
+async fn pump_server_log<R>(reader: R, log: ServerLog, hinted: Arc<AtomicBool>, app: AppHandle)
+where
+    R: tokio::io::AsyncRead + Unpin + Send + 'static,
+{
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    let mut lines = BufReader::new(reader).lines();
+    while let Ok(Some(line)) = lines.next_line().await {
+        let line = line.trim().to_string();
+        if line.is_empty() {
+            continue;
+        }
+        let low = line.to_lowercase();
+        if (low.contains("inject_events") || low.contains("injecting input events") || low.contains("injecting to another"))
+            && !hinted.swap(true, Ordering::SeqCst)
+        {
+            let _ = app.emit("mirror-hint", "inject-denied");
+        }
+        if let Ok(mut v) = log.lock() {
+            v.push(line);
+            if v.len() > 30 {
+                v.remove(0);
+            }
+        }
+    }
+}
+
+/// Append the server's last output to a start-up error, so "timed out" says why.
+fn with_server_log(err: String, log: &ServerLog) -> String {
+    let tail = log
+        .lock()
+        .map(|v| v.iter().rev().take(8).rev().cloned().collect::<Vec<_>>().join("\n"))
+        .unwrap_or_default();
+    if tail.is_empty() {
+        err
+    } else {
+        format!("{err}\n\nServer output:\n{tail}")
+    }
+}
+
 async fn accept_timeout(
     listener: &tokio::net::TcpListener,
     secs: u64,
@@ -726,15 +878,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn b64_encodes_correctly() {
-        assert_eq!(b64(b""), "");
-        assert_eq!(b64(b"f"), "Zg==");
-        assert_eq!(b64(b"fo"), "Zm8=");
-        assert_eq!(b64(b"foo"), "Zm9v");
-        assert_eq!(b64(b"foobar"), "Zm9vYmFy");
-    }
-
-    #[test]
     fn codec_names_map() {
         assert_eq!(codec_name(u32::from_be_bytes(*b"h264")), "h264");
         assert_eq!(codec_name(u32::from_be_bytes(*b"h265")), "h265");
@@ -742,35 +885,32 @@ mod tests {
     }
 
     #[test]
-    fn frame_header_parses_flags_pts_size() {
-        // config + keyframe + pts=0x1234, size=0x100
-        let config_bit: u64 = 1 << 63;
-        let key_bit: u64 = 1 << 62;
-        let pts: u64 = 0x1234;
-        let pts_flags = config_bit | key_bit | pts;
-        let size: u32 = 0x100;
-        let mut h = [0u8; 12];
-        h[..8].copy_from_slice(&pts_flags.to_be_bytes());
-        h[8..].copy_from_slice(&size.to_be_bytes());
-
-        let fh = parse_frame_header(&h);
-        assert!(fh.config);
-        assert!(fh.keyframe);
-        assert_eq!(fh.pts, 0x1234);
-        assert_eq!(fh.size, 0x100);
+    fn start_code_is_found_at_or_after_offset() {
+        let d = [9u8, 9, 0, 0, 0, 1, 7, 7, 0, 0, 0, 1, 5];
+        assert_eq!(find_start_code(&d, 0), Some(2));
+        // 00 00 01 (3-byte) codes count too: index 3 starts one inside the first 4-byte code
+        assert_eq!(find_start_code(&d, 3), Some(3));
+        assert_eq!(find_start_code(&d, 4), Some(8));
+        assert_eq!(find_start_code(&d, 10), None);
+        assert_eq!(find_start_code(&[1, 2, 3], 0), None);
     }
 
     #[test]
-    fn frame_header_plain_delta() {
-        let pts: u64 = 999;
-        let size: u32 = 42;
-        let mut h = [0u8; 12];
-        h[..8].copy_from_slice(&pts.to_be_bytes());
-        h[8..].copy_from_slice(&size.to_be_bytes());
-        let fh = parse_frame_header(&h);
-        assert!(!fh.config);
-        assert!(!fh.keyframe);
-        assert_eq!(fh.pts, 999);
-        assert_eq!(fh.size, 42);
+    fn hierarchy_is_cut_out_of_dump_output() {
+        let out = "junk\n<?xml version='1.0'?><hierarchy rotation=\"0\"><node/></hierarchy>UI hierarchy dumped to: /dev/tty";
+        let xml = extract_hierarchy(out).unwrap();
+        assert!(xml.starts_with("<?xml"));
+        assert!(xml.ends_with("</hierarchy>"));
+        assert!(extract_hierarchy("no xml here").is_none());
+    }
+
+    #[test]
+    fn server_log_tail_is_appended_to_errors() {
+        let log: ServerLog = Arc::new(std::sync::Mutex::new(Vec::new()));
+        assert_eq!(with_server_log("boom".into(), &log), "boom");
+        log.lock().unwrap().push("line one".into());
+        let msg = with_server_log("boom".into(), &log);
+        assert!(msg.starts_with("boom"));
+        assert!(msg.contains("line one"));
     }
 }

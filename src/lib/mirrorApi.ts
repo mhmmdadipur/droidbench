@@ -13,6 +13,9 @@ export interface MirrorMeta {
  * [w:u32 BE][h:u32 BE][rgba...]. When `audio` is true, PCM (s16le, 48 kHz,
  * stereo) arrives on `onAudio`. The audio channel is always required by the
  * backend and simply stays silent when audio is off. */
+/** What the mirror shows: the screen, or a camera (Android 12+, view only). */
+export type MirrorSource = "screen" | "camera-back" | "camera-front";
+
 export function mirrorStart(
   onFrame: Channel<ArrayBuffer>,
   maxSize = 1024,
@@ -20,8 +23,9 @@ export function mirrorStart(
   maxFps = 30,
   audio = false,
   onAudio: Channel<ArrayBuffer> = new Channel<ArrayBuffer>(),
+  source: MirrorSource = "screen",
 ): Promise<void> {
-  return invoke("mirror_start", { maxSize, bitrate, maxFps, audio, onFrame, onAudio });
+  return invoke("mirror_start", { maxSize, bitrate, maxFps, audio, source, onFrame, onAudio });
 }
 export function mirrorStop(): Promise<void> {
   return invoke("mirror_stop");
@@ -43,9 +47,18 @@ export function mirrorTouch(
 export function mirrorKeycode(keycode: number, meta?: number): Promise<void> {
   return invoke("mirror_keycode", { keycode, meta });
 }
-/** Type text into the focused field on the device (any Unicode). */
+/** Inject printable ASCII as key events. Other characters are skipped by the server: use mirrorPasteText. */
 export function mirrorText(text: string): Promise<void> {
   return invoke("mirror_text", { text });
+}
+/** Put `text` on the phone's clipboard and paste it into the focused field. Works for any
+ * text (CJK, emoji, newlines) and overwrites the phone's clipboard. */
+export function mirrorPasteText(text: string): Promise<void> {
+  return invoke("mirror_paste_text", { text });
+}
+/** The phone's current UI hierarchy as uiautomator XML (resource-id, content-desc, text, bounds…). */
+export function mirrorUiDump(): Promise<string> {
+  return invoke<string>("mirror_ui_dump");
 }
 /** PC -> phone: send the PC clipboard to the device; paste=true also pastes it. */
 export function mirrorClipboardToPhone(paste: boolean): Promise<number> {
@@ -55,6 +68,13 @@ export function mirrorClipboardToPhone(paste: boolean): Promise<number> {
  * autosync event (onMirrorClipboard) only if the phone clipboard actually changed. */
 export function mirrorClipboardFromPhone(copyKey: 1 | 2): Promise<void> {
   return invoke("mirror_clipboard_from_phone", { copyKey });
+}
+/** Put an RGBA image on the PC clipboard natively. The pixels travel as a raw binary
+ * request body (not JSON); the size goes in headers. */
+export function pcClipboardSetImage(rgba: Uint8Array, width: number, height: number): Promise<void> {
+  return invoke("pc_clipboard_set_image", rgba, {
+    headers: { "x-width": String(width), "x-height": String(height) },
+  });
 }
 /** Put text on the PC clipboard natively (the WebView clipboard API is unreliable). */
 export function pcClipboardSet(text: string): Promise<void> {
@@ -135,6 +155,10 @@ export function onMirrorError(cb: (msg: string) => void): Promise<UnlistenFn> {
 }
 export function onMirrorDiag(cb: (msg: string) => void): Promise<UnlistenFn> {
   return listen<string>("mirror-diag", (e) => cb(e.payload));
+}
+/** The phone refused something with a known fix, e.g. "inject-denied" (touch / keys blocked). */
+export function onMirrorHint(cb: (kind: string) => void): Promise<UnlistenFn> {
+  return listen<string>("mirror-hint", (e) => cb(e.payload));
 }
 export function onMirrorStopped(cb: () => void): Promise<UnlistenFn> {
   return listen("mirror-stopped", () => cb());

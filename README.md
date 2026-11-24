@@ -203,6 +203,34 @@ sungguhan dan **keyboard layar HP tidak muncul**. Yang dikirim adalah scancode,
 jadi karakternya mengikuti layout keyboard fisik di HP; Cmd di Mac dikirim
 sebagai Ctrl. Jendela mirror juga **menutup sendiri saat HP dicabut**.
 
+**Inspector UI:** menandai elemen layar HP berdasarkan hierarki `uiautomator`
+(hijau = punya resource-id / `Semantics(identifier:)` Flutter, biru = hanya
+label, merah = bisa diklik tanpa id). Klik elemen untuk menyalin id atau XPath.
+
+**Tes UI:** skrip sederhana per baris (`klik btn_login`, `isi email = a@b.c`,
+`tunggu home`, `ada x`, `tidak ada x`, `cek x = teks`, `jeda 2`) yang mencari elemen
+lewat resource-id / label / teks di layar HP. Berhenti di baris pertama yang gagal.
+
+**Teks Tersimpan:** simpan teks yang sering dipakai, sekali klik langsung
+diketik ke kolom aktif di HP (teks non-ASCII/emoji ditempel lewat clipboard HP).
+
+**Tes UI (lanjutan):** tombol Rekam mencatat ketukan dan ketikan di layar jadi baris skrip
+(`klik id`, `isi id = teks`, `tekan enter`), dan di panel Inspector ada tombol untuk
+menambahkan baris `klik` / `isi` / `tunggu` / `ada` dari elemen yang dipilih.
+
+**Tes UI (blok):** `jika ada id ... lainnya ... selesai`, `jika tidak ada id`, dan
+`ulangi n ... selesai`. Saat langkah gagal, screenshot HP disimpan otomatis dan hasil tes bisa
+disimpan ke file teks.
+
+**Kamera HP:** jendela mirror bisa menampilkan kamera belakang atau depan (Android 12+, hanya
+lihat). **Daftar debloat universal** bisa diperbarui dari internet lewat tab Aplikasi.
+
+**Lainnya:** pilih HP kalau lebih dari satu tersambung (kartu Status Perangkat), tab
+**Terminal** (`adb shell` dengan batas waktu 30 detik), pairing ADB nirkabel dengan kode
+(Android 11+), simpan laporan Diagnostik ke file `.txt`, Backup Penyimpanan ke PC plus
+konfirmasi sebelum unlock bootloader, dan saran otomatis saat HP Xiaomi memblokir input
+mirror ("USB debugging (Pengaturan keamanan)").
+
 Teknis: Droidbench jadi *client* scrcpy — push `scrcpy-server` ke HP, buka adb
 reverse tunnel, baca stream H.264 Annex-B (`send_frame_meta=false`), decode tiap
 NAL unit dengan **OpenH264** ke RGBA di Rust, kirim ke `<canvas>` lewat Tauri

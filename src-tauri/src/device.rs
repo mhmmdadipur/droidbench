@@ -19,6 +19,10 @@ pub struct DeviceInfo {
     pub model: String,
     pub android: String,
     pub rom: String, // MIUI/HyperOS/OneUI version etc. (or iOS version for Apple)
+    /// Every adb device that is ready right now (used for the device picker when more
+    /// than one phone is plugged in). `serial` above is the selected one.
+    #[serde(rename = "adbDevices")]
+    pub adb_devices: Vec<AdbDeviceEntry>,
 }
 
 #[derive(Clone, Serialize)]
@@ -30,15 +34,12 @@ pub struct AdbDeviceEntry {
 
 /// List every device adb currently sees, with its state. Used by the setup
 /// wizard to handle the no-device / unauthorized / multi-device cases.
-#[tauri::command]
-pub async fn list_devices(app: AppHandle) -> Result<Vec<AdbDeviceEntry>, String> {
-    let out = run_capture_internal(&app, "adb", &["devices".into(), "-l".into()])
-        .await
-        .unwrap_or_default();
+/// Parse `adb devices -l` output into entries (skips the header and daemon notices).
+fn parse_adb_devices(out: &str) -> Vec<AdbDeviceEntry> {
     let mut list = Vec::new();
     for line in out.lines().skip(1) {
         let line = line.trim();
-        if line.is_empty() || line.starts_with("* daemon") {
+        if line.is_empty() || line.starts_with('*') {
             continue;
         }
         let mut parts = line.split_whitespace();
@@ -47,7 +48,7 @@ pub async fn list_devices(app: AppHandle) -> Result<Vec<AdbDeviceEntry>, String>
         if serial.is_empty() || state.is_empty() {
             continue;
         }
-        // model= token is present in -l output for ready devices
+        // model: token is present in -l output for ready devices
         let model = line
             .split_whitespace()
             .find_map(|t| t.strip_prefix("model:"))
@@ -55,7 +56,85 @@ pub async fn list_devices(app: AppHandle) -> Result<Vec<AdbDeviceEntry>, String>
             .replace('_', " ");
         list.push(AdbDeviceEntry { serial, state, model });
     }
-    Ok(list)
+    list
+}
+
+/// List every device adb currently sees, with its state. Used by the setup
+/// wizard to handle the no-device / unauthorized / multi-device cases.
+#[tauri::command]
+pub async fn list_devices(app: AppHandle) -> Result<Vec<AdbDeviceEntry>, String> {
+    let out = run_capture_internal(&app, "adb", &["devices".into(), "-l".into()])
+        .await
+        .unwrap_or_default();
+    Ok(parse_adb_devices(&out))
+}
+
+/// Choose which phone every adb / fastboot / scrcpy call talks to. adb and fastboot
+/// read `ANDROID_SERIAL`, and every child process we spawn inherits it, so one setting
+/// covers the whole app (including the mirror window, which is a separate webview of
+/// this same process). `None` or an empty string goes back to "whatever is connected".
+#[tauri::command]
+pub fn select_device(serial: Option<String>) {
+    match serial.as_deref().map(str::trim) {
+        // SAFETY: only called from command handlers; the value is a plain string and
+        // adb tolerates a stale serial (it just reports "device not found").
+        Some(s) if !s.is_empty() => unsafe { std::env::set_var("ANDROID_SERIAL", s) },
+        _ => unsafe { std::env::remove_var("ANDROID_SERIAL") },
+    }
+}
+
+/// Run `adb shell <command>` with a time limit and return stdout + stderr. Used by the
+/// built-in terminal. The command line goes to the phone's shell as ONE argument, so
+/// pipes and quotes behave as they would in `adb shell "..."`.
+#[tauri::command]
+pub async fn adb_shell(
+    app: AppHandle,
+    command: String,
+    timeout_secs: Option<u64>,
+) -> Result<String, String> {
+    use std::process::Stdio;
+    use std::time::Duration;
+
+    let program = resolve_tool(&app, "adb");
+    let mut cmd = tokio::process::Command::new(&program);
+    cmd.arg("shell")
+        .arg(&command)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let secs = timeout_secs.unwrap_or(30).clamp(1, 300);
+    let output = match tokio::time::timeout(Duration::from_secs(secs), cmd.output()).await {
+        Ok(Ok(o)) => o,
+        Ok(Err(e)) => return Err(format!("failed to run adb: {e}")),
+        // dropping the future kills the adb client (kill_on_drop)
+        Err(_) => return Err(format!("timed out after {secs}s, command stopped")),
+    };
+    let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
+    let err = String::from_utf8_lossy(&output.stderr);
+    if !err.trim().is_empty() {
+        if !text.is_empty() && !text.ends_with('\n') {
+            text.push('\n');
+        }
+        text.push_str(&err);
+    }
+    // keep the webview responsive if something like `cat` of a huge file is run
+    const MAX: usize = 200_000;
+    if text.len() > MAX {
+        let mut cut = MAX;
+        while !text.is_char_boundary(cut) {
+            cut -= 1;
+        }
+        text.truncate(cut);
+        text.push_str("\n... (output truncated)");
+    }
+    Ok(text)
 }
 
 async fn getprop(app: &AppHandle, prop: &str) -> String {
@@ -87,22 +166,30 @@ pub async fn detect_device(app: AppHandle) -> Result<DeviceInfo, String> {
     info.mode = "none".into();
 
     // 1) adb devices
-    let adb_out = run_capture_internal(&app, "adb", &["devices".into()])
+    let adb_out = run_capture_internal(&app, "adb", &["devices".into(), "-l".into()])
         .await
         .unwrap_or_default();
-    let adb_serial = adb_out
-        .lines()
-        .skip(1)
-        .find_map(|l| {
-            let l = l.trim();
-            if l.ends_with("\tdevice") || l.ends_with(" device") {
-                Some(l.split_whitespace().next().unwrap_or("").to_string())
-            } else {
-                None
-            }
-        });
+    let entries = parse_adb_devices(&adb_out);
+    let ready: Vec<AdbDeviceEntry> = entries.iter().filter(|e| e.state == "device").cloned().collect();
 
-    if let Some(serial) = adb_serial {
+    // Keep the app-wide device choice valid. With several phones plugged in, adb refuses
+    // commands that don't say which one, so always have one selected: the user's pick if
+    // it is still there, otherwise the first. With none ready, drop the setting so
+    // fastboot / other modes are not filtered by a stale serial.
+    let wanted = std::env::var("ANDROID_SERIAL").unwrap_or_default();
+    let chosen = if ready.iter().any(|e| e.serial == wanted) {
+        Some(wanted.clone())
+    } else {
+        ready.first().map(|e| e.serial.clone())
+    };
+    match &chosen {
+        Some(s) if *s != wanted => select_device(Some(s.clone())),
+        None if !wanted.is_empty() => select_device(None),
+        _ => {}
+    }
+    info.adb_devices = ready;
+
+    if let Some(serial) = chosen {
         info.connected = true;
         info.mode = "adb".into();
         info.serial = serial;
@@ -130,21 +217,11 @@ pub async fn detect_device(app: AppHandle) -> Result<DeviceInfo, String> {
 
     // 1b) a device is plugged in but not ready: unauthorized / offline.
     // These are crucial for guiding a first-time user through setup.
-    for l in adb_out.lines().skip(1) {
-        let l = l.trim();
-        if l.is_empty() {
-            continue;
-        }
-        if l.ends_with("unauthorized") {
+    for e in &entries {
+        if e.state == "unauthorized" || e.state == "offline" {
             info.mode = "none".into();
-            info.adb_state = "unauthorized".into();
-            info.serial = l.split_whitespace().next().unwrap_or("").to_string();
-            return Ok(info);
-        }
-        if l.ends_with("offline") {
-            info.mode = "none".into();
-            info.adb_state = "offline".into();
-            info.serial = l.split_whitespace().next().unwrap_or("").to_string();
+            info.adb_state = e.state.clone();
+            info.serial = e.serial.clone();
             return Ok(info);
         }
     }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { Camera, Video, Square, Contact, Wifi, Loader2, ExternalLink } from "lucide-react";
+import { Camera, Video, Square, Contact, Wifi, Loader2, ExternalLink, HardDriveDownload } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Row, Section, TabHelp } from "../ui/Section";
 import { useTools } from "../../lib/useTools";
@@ -20,6 +20,8 @@ export function AdbTab() {
   const [recDevPath, setRecDevPath] = useState("");
   const [recDest, setRecDest] = useState("");
   const [wifiIp, setWifiIp] = useState("");
+  const [pairAddr, setPairAddr] = useState("");
+  const [pairCode, setPairCode] = useState("");
   const [url, setUrl] = useState("");
   const [typeText, setTypeText] = useState("");
 
@@ -111,6 +113,19 @@ export function AdbTab() {
     } catch (e) {
       push(String(e), "stderr");
     }
+  }
+
+  // Copy the phone's whole shared storage (photos, downloads, documents...) to the computer.
+  // Meant for the step before unlocking the bootloader, which wipes the phone.
+  async function backupStorage() {
+    if (!guard()) return;
+    const dir = await open({ directory: true, multiple: false });
+    if (typeof dir !== "string") {
+      push(tr("adb.noFolder"), "stderr");
+      return;
+    }
+    push(tr("adb.backupStorageStart", { path: dir }), "system");
+    run("adb", ["pull", "/sdcard/", dir]);
   }
 
   async function enterSideload() {
@@ -269,6 +284,9 @@ export function AdbTab() {
         <Button size="block" title={tr("adb.backupContactsHint")} onClick={backupContacts}>
           <Contact size={14} /> {tr("adb.backupContacts")}
         </Button>
+        <Button size="block" title={tr("adb.backupStorageHint")} onClick={backupStorage}>
+          <HardDriveDownload size={14} /> {tr("adb.backupStorage")}
+        </Button>
       </Section>
 
       <Section title={tr("adb.wireless")}>
@@ -302,6 +320,36 @@ export function AdbTab() {
           }}
         >
           {tr("adb.wirelessConnect")}
+        </Button>
+
+        {/* Android 11+: pair with a code first (no USB cable needed at all) */}
+        <div className="mt-1 text-[11px] font-semibold text-[var(--color-ink)]">{tr("adb.pairTitle")}</div>
+        <p className="text-[10.5px] leading-snug text-[var(--color-ink-faint)]">{tr("adb.pairDesc")}</p>
+        <div className="flex gap-1.5">
+          <input
+            value={pairAddr}
+            onChange={(e) => setPairAddr(e.target.value)}
+            placeholder={tr("adb.pairAddr")}
+            className="no-drag min-w-0 flex-[2] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12px] text-[var(--color-ink)] outline-none focus:border-[var(--color-brand)]"
+          />
+          <input
+            value={pairCode}
+            onChange={(e) => setPairCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder={tr("adb.pairCode")}
+            inputMode="numeric"
+            className="no-drag min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12px] text-[var(--color-ink)] outline-none focus:border-[var(--color-brand)]"
+          />
+        </div>
+        <Button
+          size="block"
+          title={tr("adb.pairHint")}
+          disabled={!pairAddr.trim().includes(":") || pairCode.length !== 6}
+          onClick={() => {
+            t.raw("adb", ["pair", pairAddr.trim(), pairCode], true);
+            setPairCode("");
+          }}
+        >
+          {tr("adb.pair")}
         </Button>
       </Section>
 

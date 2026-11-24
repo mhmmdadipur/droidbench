@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { ask, open } from "@tauri-apps/plugin-dialog";
 import { Usb, Zap, RefreshCw, ExternalLink, Boxes, Lightbulb } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Row, Section, TabHelp } from "../ui/Section";
@@ -64,6 +64,18 @@ export function FastbootTab() {
   const unlockTone: StatusTone = lock === "unlocked" ? "ok" : lock === "locked" ? "bad" : "neutral";
   const unlockLabel =
     lock === "unlocked" ? tr("flash.badge.unlocked") : lock === "locked" ? tr("flash.badge.locked") : tr("flash.badge.unknown");
+
+  /** Unlocking erases the phone. Make the user confirm, with a backup checklist, before it runs. */
+  async function confirmUnlock(args: string[]) {
+    const yes = await ask(tr("fb.unlockConfirm"), {
+      title: tr("fb.unlockConfirmTitle"),
+      kind: "warning",
+      okLabel: tr("fb.unlockConfirmOk"),
+      cancelLabel: tr("common.cancel"),
+    }).catch(() => false);
+    if (yes) t.fastboot(args);
+    else push(tr("fb.unlockCancelled"), "system");
+  }
 
   async function flash(partition: string) {
     const file = await open({
@@ -236,14 +248,14 @@ export function FastbootTab() {
 
       <Section title={tr("fb.lockSec")}>
         <Row>
-          <Button variant="danger" title={tr("fb.unlockHint")} onClick={() => t.fastboot(["flashing", "unlock"])}>
+          <Button variant="danger" title={tr("fb.unlockHint")} onClick={() => void confirmUnlock(["flashing", "unlock"])}>
             {tr("fb.unlock")}
           </Button>
           <Button title={tr("fb.lockHint")} onClick={() => t.fastboot(["flashing", "lock"])}>
             {tr("fb.lock")}
           </Button>
         </Row>
-        <Button size="block" title={tr("fb.oemUnlockHint")} onClick={() => t.fastboot(["oem", "unlock"])}>
+        <Button size="block" title={tr("fb.oemUnlockHint")} onClick={() => void confirmUnlock(["oem", "unlock"])}>
           {tr("fb.oemUnlock")}
         </Button>
       </Section>

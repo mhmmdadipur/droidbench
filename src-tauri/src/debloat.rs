@@ -40,11 +40,20 @@ pub async fn load_debloat_db(app: AppHandle, id: String) -> Result<DebloatDataba
     let file_name = format!("{id}.json");
 
     let mut content: Option<String> = None;
-    if let Ok(resource_dir) = app.path().resource_dir() {
+    // a copy refreshed from the internet (see save_debloat_db) wins over the bundled one
+    if let Ok(data_dir) = app.path().app_data_dir() {
+        let updated = data_dir.join("databases").join(&file_name);
+        if updated.exists() {
+            content = std::fs::read_to_string(&updated).ok();
+        }
+    }
+    if content.is_none() {
+        if let Ok(resource_dir) = app.path().resource_dir() {
         let candidate = resource_dir.join("databases").join(&file_name);
         if candidate.exists() {
             content = std::fs::read_to_string(&candidate).ok();
         }
+    }
     }
     if content.is_none() {
         let dev = std::path::Path::new("databases").join(&file_name);
@@ -54,6 +63,35 @@ pub async fn load_debloat_db(app: AppHandle, id: String) -> Result<DebloatDataba
     }
     let content = content.ok_or_else(|| format!("database `{id}` not found"))?;
     serde_json::from_str::<DebloatDatabase>(&content).map_err(|e| e.to_string())
+}
+
+/// Store a debloat database downloaded by the frontend, so it replaces the bundled copy.
+/// The JSON must parse as a `DebloatDatabase` with the same id and at least one package;
+/// anything else is rejected instead of being saved over a working list.
+#[tauri::command]
+pub async fn save_debloat_db(app: AppHandle, id: String, json: String) -> Result<usize, String> {
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+        return Err("invalid database id".into());
+    }
+    let db: DebloatDatabase = serde_json::from_str(&json).map_err(|e| format!("invalid database: {e}"))?;
+    if db.id != id {
+        return Err(format!("database id mismatch: {} != {}", db.id, id));
+    }
+    let total: usize = db.categories.iter().map(|c| c.entries.len()).sum();
+    if total == 0 {
+        return Err("the downloaded list is empty".into());
+    }
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("databases");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    // write to a temp file first so a crash never leaves a half-written list
+    let tmp = dir.join(format!("{id}.json.tmp"));
+    std::fs::write(&tmp, &json).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, dir.join(format!("{id}.json"))).map_err(|e| e.to_string())?;
+    Ok(total)
 }
 
 /// Return the set of package names currently present on the device

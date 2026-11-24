@@ -178,9 +178,12 @@ fn utf8_cut(s: &str, max: usize) -> usize {
     n
 }
 
-/// Type text into the focused field on the device (INJECT_TEXT). Handles any
-/// Unicode (accents, CJK, emoji) and splits into <=300-byte chunks on char
-/// boundaries as scrcpy requires.
+/// Type text into the focused field on the device (INJECT_TEXT), split into <=300-byte
+/// chunks on char boundaries as scrcpy requires.
+///
+/// Only for printable ASCII. The server maps each character to key events and SKIPS any
+/// character it has no key for (CJK, emoji, most symbols), without any error. Use
+/// `mirror_paste_text` for everything else.
 #[tauri::command]
 pub async fn mirror_text(state: State<'_, MirrorState>, text: String) -> Result<(), String> {
     let mut rest = text.as_str();
@@ -198,6 +201,24 @@ pub async fn mirror_text(state: State<'_, MirrorState>, text: String) -> Result<
         rest = tail;
     }
     Ok(())
+}
+
+/// Put `text` on the phone's clipboard and press PASTE (SET_CLIPBOARD with paste=true).
+/// Works for any text (CJK, emoji, newlines) and long text. The phone's clipboard is
+/// overwritten as a side effect.
+#[tauri::command]
+pub async fn mirror_paste_text(state: State<'_, MirrorState>, text: String) -> Result<(), String> {
+    if text.is_empty() {
+        return Ok(());
+    }
+    let n = utf8_cut(&text, CLIPBOARD_MAX);
+    let mut m = Vec::with_capacity(14 + n);
+    m.push(TYPE_SET_CLIPBOARD);
+    push_u64(&mut m, 0); // sequence 0 = no ACK requested
+    m.push(1); // paste = true
+    push_u32(&mut m, n as u32);
+    m.extend_from_slice(&text.as_bytes()[..n]);
+    write_control(&state, &m).await
 }
 
 // ───────────────────────── Clipboard ─────────────────────────
@@ -232,6 +253,51 @@ pub async fn set_pc_clipboard(text: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn pc_clipboard_set(text: String) -> Result<(), String> {
     set_pc_clipboard(text).await
+}
+
+/// Put an image on the PC clipboard. The frontend sends the raw RGBA pixels as the
+/// request body (no JSON / base64 round trip) and the size in `x-width` / `x-height`
+/// headers. This is native on purpose: `navigator.clipboard.write` runs inside the
+/// WebView, which rejects it with NotAllowedError unless it is called synchronously
+/// from the click handler — and reading the canvas back is asynchronous.
+#[tauri::command]
+pub async fn pc_clipboard_set_image(request: tauri::ipc::Request<'_>) -> Result<(), String> {
+    /// Refuse absurd payloads (a 4K frame is ~33 MB).
+    const MAX_BYTES: usize = 128 * 1024 * 1024;
+
+    let tauri::ipc::InvokeBody::Raw(data) = request.body() else {
+        return Err("expected raw RGBA pixel data".into());
+    };
+    let dim = |name: &str| -> Result<usize, String> {
+        request
+            .headers()
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse::<usize>().ok())
+            .filter(|n| *n > 0)
+            .ok_or_else(|| format!("missing or invalid `{name}` header"))
+    };
+    let (width, height) = (dim("x-width")?, dim("x-height")?);
+    let expected = width.checked_mul(height).and_then(|n| n.checked_mul(4));
+    if expected != Some(data.len()) || data.len() > MAX_BYTES {
+        return Err(format!(
+            "pixel data is {} bytes but {width}x{height} RGBA needs {}",
+            data.len(),
+            expected.map_or("an overflowing number of".to_string(), |n| n.to_string())
+        ));
+    }
+    let bytes = data.clone();
+    tokio::task::spawn_blocking(move || {
+        let mut cb = arboard::Clipboard::new().map_err(|e| format!("clipboard: {e}"))?;
+        cb.set_image(arboard::ImageData {
+            width,
+            height,
+            bytes: std::borrow::Cow::Owned(bytes),
+        })
+        .map_err(|e| format!("clipboard image: {e}"))
+    })
+    .await
+    .map_err(|e| format!("clipboard task: {e}"))?
 }
 
 /// PC -> phone: send the PC clipboard to the device (SET_CLIPBOARD). With

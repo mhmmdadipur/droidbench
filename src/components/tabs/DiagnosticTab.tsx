@@ -21,7 +21,10 @@ import {
   Loader2,
   Scale,
   BadgeCheck,
+  Save,
 } from "lucide-react";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { Button } from "../ui/Button";
 import { Section, TabHelp } from "../ui/Section";
 import { LicenseModal } from "../LicenseModal";
@@ -327,10 +330,11 @@ function AndroidDiagnosticTab() {
 
   const score = report ? computeScore(report, checks) : null;
 
-  async function copyAll() {
-    if (!report) return;
+  /** The report as plain text (copied to the clipboard or saved to a file). */
+  function reportLines(): string[] {
+    if (!report) return [];
     const b = report.battery;
-    const lines = [
+    return [
       `Battery health: ${b.healthPct ?? "n/a"}% (${fmtUAh(b.maxCapacity)} / ${fmtUAh(b.designCapacity)})`,
       `Battery level: ${b.level ?? "—"}%  temp: ${b.tempC ?? "—"}°C  voltage: ${b.voltage ?? "—"}mV`,
       `RAM: ${fmtKb(report.memory.availKb)} free / ${fmtKb(report.memory.totalKb)}`,
@@ -344,6 +348,11 @@ function AndroidDiagnosticTab() {
       `Kernel: ${report.system.kernel}`,
       score ? `Score: ${score.score}/100 (${score.band})` : "",
     ].filter(Boolean);
+  }
+
+  async function copyAll() {
+    if (!report) return;
+    const lines = reportLines();
     try {
       await navigator.clipboard.writeText(lines.join("\n"));
       setCopied(true);
@@ -351,6 +360,39 @@ function AndroidDiagnosticTab() {
       push("Report copied to clipboard.", "system");
     } catch {
       push("Failed to copy to clipboard.", "stderr");
+    }
+  }
+
+  // Save the same report to a text file, with the phone's name and the date in the header,
+  // so scans of different phones (or the same phone over time) can be kept and compared.
+  async function saveReport() {
+    if (!report) return;
+    const name = [device.brand, device.model].filter(Boolean).join(" ") || device.serial || "device";
+    const now = new Date();
+    const stamp = now.toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const safe = name.replace(/[^\w.-]+/g, "_");
+    const done = Object.entries(checks).filter(([, v]) => v !== "untested");
+    const body = [
+      "Droidbench diagnostic report",
+      `Device: ${name}`,
+      `Serial: ${device.serial || "—"}`,
+      `Android: ${device.android || "—"}  ROM: ${device.rom || "—"}`,
+      `Date: ${now.toISOString()}`,
+      "",
+      ...reportLines(),
+      ...(done.length > 0 ? ["", "Checklist:", ...done.map(([k, v]) => `  ${k}: ${v}`)] : []),
+      "",
+    ].join("\n");
+    try {
+      const path = await save({
+        defaultPath: `droidbench-${safe}-${stamp}.txt`,
+        filters: [{ name: "Text", extensions: ["txt"] }],
+      });
+      if (!path) return;
+      await writeTextFile(path, body);
+      push(t("diag.saved", { path }), "system");
+    } catch (e) {
+      push(t("diag.saveFail", { error: String(e) }), "stderr");
     }
   }
 
@@ -660,6 +702,9 @@ function AndroidDiagnosticTab() {
           <Button size="block" title={t("diag.copyHint")} onClick={copyAll}>
             {copied ? <Check size={14} /> : <Copy size={14} />}
             {copied ? t("common.copied") : t("diag.copyAll")}
+          </Button>
+          <Button size="block" className="mt-1.5" title={t("diag.saveHint")} onClick={() => void saveReport()}>
+            <Save size={14} /> {t("diag.save")}
           </Button>
 
           {/* how the score is calculated — transparency */}

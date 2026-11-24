@@ -1,10 +1,21 @@
 // Maps laptop keyboard events to Android input for the mirror window.
 //
 // Printable characters are NOT handled here: they flow through a hidden
-// <textarea>'s `input` event and are sent as text (INJECT_TEXT), which handles
-// every keyboard layout, accents and IME composition correctly. This module
-// only covers the keys that have no text representation (Enter, Backspace,
-// arrows, …) and the Ctrl/Cmd shortcuts.
+// <textarea>'s `input` event, which gives us the text the user's layout / IME produced.
+// That text is then sent either as key events (INJECT_TEXT) or pasted (SET_CLIPBOARD +
+// PASTE), see `isDirectlyTypable`. This module covers the keys that have no text
+// representation (Enter, Backspace, arrows, …) and the Ctrl/Cmd shortcuts.
+
+/**
+ * Can `text` be typed with scrcpy's INJECT_TEXT? The server turns every character into
+ * key events through the phone's virtual key map, and a character it has no key for is
+ * silently skipped (scrcpy v5.0.1 Controller.injectChar / injectText). Only printable
+ * ASCII is certain to have one. Everything else (accents, CJK, emoji, newlines, tabs)
+ * must be pasted instead, which works for any text.
+ */
+export function isDirectlyTypable(text: string): boolean {
+  return /^[\x20-\x7e]*$/.test(text);
+}
 
 /** android.view.KeyEvent.KEYCODE_* values we use. */
 export const AKEY = {

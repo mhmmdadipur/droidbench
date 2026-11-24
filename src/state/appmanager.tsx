@@ -126,18 +126,17 @@ export function AppManagerProvider({ children }: { children: ReactNode }) {
   // Per-device data is cleared on disconnect; the chosen DB/filter (UI prefs)
   // are kept.
   useEffect(() => {
-    if (!device.connected) {
-      setAll([]);
-      setDisabled(new Set());
-      setLaunchable(new Set());
-      setQuery("");
-      setKind("menu");
-      setSelected(null);
-      setMarketStatus("unknown");
-      setChecked(new Set());
-      setDebloatIndex(new Map());
-    }
-  }, [device.connected]);
+    // (also when another phone is picked: the serial changes while connected stays true)
+    setAll([]);
+    setDisabled(new Set());
+    setLaunchable(new Set());
+    setQuery("");
+    setKind("menu");
+    setSelected(null);
+    setMarketStatus("unknown");
+    setChecked(new Set());
+    setDebloatIndex(new Map());
+  }, [device.connected, device.serial]);
 
   return (
     <Ctx.Provider

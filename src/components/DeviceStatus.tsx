@@ -3,6 +3,7 @@ import { RefreshCw, Copy, Check } from "lucide-react";
 import { useDevice } from "../state/device";
 import { useLog } from "../state/log";
 import { useI18n } from "../i18n";
+import { selectDevice } from "../lib/api";
 
 function Field({
   label,
@@ -134,6 +135,28 @@ export function DeviceStatus() {
       </div>
 
       <div className="flex flex-col gap-1.5">
+        {(device.adbDevices?.length ?? 0) > 1 && (
+          <label className="flex items-center justify-between gap-2 text-[13px]">
+            <span className="shrink-0 text-[var(--color-ink-faint)]">{t("status.pick")}</span>
+            <select
+              value={device.serial}
+              title={t("status.pickHint")}
+              onChange={(e) => {
+                // the choice lives in the backend (ANDROID_SERIAL), so the mirror window follows too
+                selectDevice(e.target.value)
+                  .then(refresh)
+                  .catch(() => {});
+              }}
+              className="no-drag min-w-0 flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-1 text-[12px] text-[var(--color-ink)] outline-none focus:border-[var(--color-brand)]"
+            >
+              {device.adbDevices?.map((d) => (
+                <option key={d.serial} value={d.serial}>
+                  {d.model ? `${d.model} (${d.serial})` : d.serial}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {(() => {
           const deviceName = online
             ? [device.brand, device.model].filter(Boolean).join(" ") || device.serial

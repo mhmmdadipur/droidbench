@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { RefreshCw, Search, Store, PackagePlus, PackageOpen } from "lucide-react";
+import { RefreshCw, Search, Store, PackagePlus, PackageOpen, CloudDownload } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Row, Section, TabHelp } from "../ui/Section";
 import {
@@ -8,7 +8,9 @@ import {
   listInstalledPackages,
   loadDebloatDb,
   runCapture,
+  saveDebloatDb,
 } from "../../lib/api";
+import { fetchUniversalDb } from "../../lib/debloatUpdate";
 import { useLog } from "../../state/log";
 import { useDevice } from "../../state/device";
 import { useAppManager, type DbId, type RiskFilter } from "../../state/appmanager";
@@ -280,6 +282,24 @@ export function AppManagerTab() {
   }
 
   // ── debloat database (bottom section) ─────────────────────────────────────
+  const [updatingDb, setUpdatingDb] = useState(false);
+  /** Download the newest universal list; it replaces the bundled copy on this computer. */
+  async function updateUniversalDb() {
+    setUpdatingDb(true);
+    push(t("app.debloat.updating"), "system");
+    try {
+      const { db: fresh, failed } = await fetchUniversalDb();
+      const n = await saveDebloatDb("universal", JSON.stringify(fresh));
+      push(t("app.debloat.updated", { n }), "system");
+      if (failed.length > 0) push(t("app.debloat.updateSkipped", { list: failed.join(", ") }), "stderr");
+      if (dbId === "universal") await loadDb("universal");
+    } catch (e) {
+      push(t("app.debloat.updateFail", { error: String(e) }), "stderr");
+    } finally {
+      setUpdatingDb(false);
+    }
+  }
+
   async function loadDb(id: DbId) {
     setDbLoading(true);
     try {
@@ -663,6 +683,12 @@ export function AppManagerTab() {
             </button>
           ))}
         </div>
+
+        {dbId === "universal" && (
+          <Button size="sm" className="mb-2 w-full" disabled={updatingDb} title={t("app.debloat.updateHint")} onClick={() => void updateUniversalDb()}>
+            <CloudDownload size={13} className={updatingDb ? "animate-pulse" : ""} /> {t("app.debloat.update")}
+          </Button>
+        )}
 
         {/* risk filter */}
         <div className="mb-2 flex gap-1 rounded-lg bg-[var(--color-surface-2)] p-1">

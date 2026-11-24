@@ -25,6 +25,8 @@ export interface DeviceInfo {
   model: string;
   android: string;
   rom: string;
+  /** every adb device that is ready right now; `serial` above is the selected one */
+  adbDevices?: AdbDeviceEntry[];
 }
 
 export interface DebloatEntry {
@@ -146,6 +148,16 @@ export function listDevices(): Promise<AdbDeviceEntry[]> {
   return invoke<AdbDeviceEntry[]>("list_devices");
 }
 
+/** Choose which phone adb / fastboot / scrcpy talk to (null = automatic). */
+export function selectDevice(serial: string | null): Promise<void> {
+  return invoke("select_device", { serial });
+}
+
+/** `adb shell <command>` with a time limit (default 30 s); returns stdout + stderr. */
+export function adbShell(command: string, timeoutSecs?: number): Promise<string> {
+  return invoke<string>("adb_shell", { command, timeoutSecs: timeoutSecs ?? null });
+}
+
 export function checkTools(): Promise<ToolStatus[]> {
   return invoke<ToolStatus[]>("check_tools");
 }
@@ -161,6 +173,10 @@ export function installXapk(path: string, grant: boolean, reinstall: boolean): P
 
 export function loadDebloatDb(id: string): Promise<DebloatDatabase> {
   return invoke<DebloatDatabase>("load_debloat_db", { id });
+}
+/** Store a downloaded debloat list so it replaces the bundled one. Returns the package count. */
+export function saveDebloatDb(id: string, json: string): Promise<number> {
+  return invoke<number>("save_debloat_db", { id, json });
 }
 export function listInstalledPackages(): Promise<string[]> {
   return invoke<string[]>("list_installed_packages");
