@@ -6,9 +6,16 @@ import {
   Square,
   Circle,
   Bell,
-  LayoutGrid,
-  EyeOff,
+  ToggleRight,
   Settings,
+  MousePointerClick,
+  SlidersHorizontal,
+  Bug,
+  Pointer,
+  Clapperboard,
+  Pin,
+  Maximize2,
+  Gauge,
   Code2,
   Info,
   Trash2,
@@ -34,11 +41,13 @@ import {
   Copy,
   Keyboard,
   KeyboardOff,
+  PanelTopClose,
   ScanSearch,
 } from "lucide-react";
 import { open, ask } from "@tauri-apps/plugin-dialog";
 import { downloadDir } from "@tauri-apps/api/path";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import {
   INTENT,
   KEY,
@@ -47,6 +56,8 @@ import {
   mirrorClipboardToPhone,
   mirrorDisplayPower,
   mirrorKeycode,
+  mirrorLog,
+  mirrorDeviceToggle,
   mirrorOpen,
   mirrorPanel,
   mirrorPasteText,
@@ -79,7 +90,7 @@ import {
   type MirrorMeta,
   type MirrorSource,
 } from "../../lib/mirrorApi";
-import { AKEY, classifyKey, hidReport, isDirectlyTypable, isHidKey, isHidModifier, isMac } from "../../lib/mirrorKeys";
+import { AKEY, META, classifyKey, hidReport, isDirectlyTypable, isHidKey, isHidModifier, isMac } from "../../lib/mirrorKeys";
 import { analyze, hitTest, parseUiDump, type UiTree } from "../../lib/uiInspector";
 import type { Snippet } from "../../lib/snippets";
 import { EXAMPLE_SCRIPT, appendLine, recordText, tapTarget, targetFor } from "../../lib/uiTest";
@@ -115,6 +126,44 @@ const LS_QUALITY = "droidbench.mirror.quality";
 const LS_AUDIO = "droidbench.mirror.audio";
 const LS_UHID = "droidbench.mirror.uhid";
 const LS_SHOT_DIR = "droidbench.mirror.shotDir";
+const LS_PANEL_TAB = "droidbench.mirror.panelTab";
+const LS_ON_TOP = "droidbench.mirror.onTop";
+
+/** Keyboard shortcuts: Alt (Option on Mac) + key, like scrcpy's MOD key. Matched on
+ * KeyboardEvent.code so they work on any keyboard layout. */
+type ShortcutId =
+  | "home" | "back" | "recents" | "power" | "rotate" | "notif" | "quick" | "collapse"
+  | "volUp" | "volDown" | "display" | "screenshot" | "copyFrame" | "inspector";
+const SHORTCUTS: { id: ShortcutId; code: string; shift?: boolean; keys: string; label: string; repeat?: boolean }[] = [
+  { id: "home", code: "KeyH", keys: "H", label: "Home" },
+  { id: "back", code: "KeyB", keys: "B", label: "Kembali" },
+  { id: "recents", code: "KeyS", keys: "S", label: "Aplikasi terbaru" },
+  { id: "power", code: "KeyP", keys: "P", label: "Power" },
+  { id: "rotate", code: "KeyR", keys: "R", label: "Putar layar" },
+  { id: "notif", code: "KeyN", keys: "N", label: "Panel notifikasi" },
+  { id: "quick", code: "KeyQ", keys: "Q", label: "Setelan cepat" },
+  { id: "collapse", code: "KeyN", shift: true, keys: "Shift+N", label: "Tutup panel" },
+  { id: "volUp", code: "ArrowUp", keys: "Atas", label: "Volume naik", repeat: true },
+  { id: "volDown", code: "ArrowDown", keys: "Bawah", label: "Volume turun", repeat: true },
+  { id: "display", code: "KeyO", keys: "O", label: "Matikan / nyalakan layar HP" },
+  { id: "screenshot", code: "KeyS", shift: true, keys: "Shift+S", label: "Screenshot" },
+  { id: "copyFrame", code: "KeyC", keys: "C", label: "Salin layar ke clipboard" },
+  { id: "inspector", code: "KeyI", keys: "I", label: "Inspector UI" },
+];
+const MOD_LABEL = typeof navigator !== "undefined" && /mac/i.test(navigator.platform) ? "Option" : "Alt";
+/** Notices that report a failure go to the log as errors. */
+const TOAST_ERROR = /gagal|tidak ada teks|menolak|belum diketahui|tidak direkam|tidak didukung|tidak punya id/i;
+
+type PanelTab = "control" | "settings" | "debug";
+function loadPanelTab(): PanelTab {
+  try {
+    const v = localStorage.getItem(LS_PANEL_TAB);
+    if (v === "control" || v === "settings" || v === "debug") return v;
+  } catch {
+    /* ignore */
+  }
+  return "control";
+}
 
 /** "…/Downloads" — the last folders of a path, so a long path still shows what matters. */
 function shortPath(p: string): string {
@@ -204,6 +253,39 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
 
   const isRunning = runningStep !== null;
 
+  // ---- right-hand panel tabs ----
+  // Every tab stays mounted (only hidden), so a running test, an open form or a macro keeps
+  // its state while another tab is shown.
+  const [panelTab, setPanelTab] = useState<PanelTab>(loadPanelTab);
+  const panelScrollRef = useRef<HTMLDivElement>(null);
+
+  // ---- phone helpers (restored by the backend when turned off / when the mirror stops) ----
+  const [touchesOn, setTouchesOn] = useState(false);
+  const [demoOn, setDemoOn] = useState(false);
+
+  // ---- window ----
+  const [onTop, setOnTop] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(LS_ON_TOP) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  // ---- frame rate: frames received from the phone vs. frames painted, per second ----
+  const recvCount = useRef(0);
+  const paintCount = useRef(0);
+  const [fps, setFps] = useState<{ recv: number; shown: number } | null>(null);
+  function choosePanelTab(t: PanelTab) {
+    setPanelTab(t);
+    panelScrollRef.current?.scrollTo({ top: 0 });
+    try {
+      localStorage.setItem(LS_PANEL_TAB, t);
+    } catch {
+      /* ignore */
+    }
+  }
+
   // ---- keyboard / clipboard ----
   // A hidden <textarea> holds keyboard focus while the mirror is live in
   // Control mode. Text arrives via its `input` event (any layout, accents, IME).
@@ -239,11 +321,18 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
   const [source, setSource] = useState<MirrorSource>("screen");
   const isScreen = source === "screen";
   const kbActive = status === "live" && mode === "control" && !inspecting && isScreen;
+  // something in the Debug tab changes what a click on the phone screen does: flag the tab
+  const debugActive = inspecting || uiRecording || mode === "edit" || recording || isRunning;
 
-  function showToast(msg: string) {
+  /** Show a notice over the phone screen and copy it to the main Command Log. `logText`
+   * replaces the logged line (e.g. to keep a saved text's name out of the log). */
+  function showToast(msg: string, logText?: string) {
+    const line = logText ?? msg;
+    mirrorLog(line, TOAST_ERROR.test(line) ? "error" : "info");
     setToast(msg);
     window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(""), 2500);
+    // longer messages stay longer so they can be read (2.5 s up to 7 s)
+    toastTimer.current = window.setTimeout(() => setToast(""), Math.min(7000, 2500 + msg.length * 40));
   }
   function focusKb() {
     kbRef.current?.focus({ preventScroll: true });
@@ -268,14 +357,22 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
     const now = Date.now();
     if (now - lastCopyAt.current < 400) return;
     lastCopyAt.current = now;
-    // The phone only reports its clipboard when it CHANGES (scrcpy autosync), so with
-    // no text selected nothing comes back. Say so instead of failing silently.
+    // The phone only reports its clipboard when it CHANGES (scrcpy autosync), so success is
+    // seen as a clipboard event. First press the Android COPY / CUT key (native views handle
+    // it). Many apps don't: Flutter, Chrome / WebView and most read-only text only react to
+    // Ctrl+C / Ctrl+X. So when nothing came back, send that too before giving up.
     mirrorClipboardFromPhone(cut ? 2 : 1).catch((e) => showToast(`Gagal menyalin: ${String(e)}`));
     window.setTimeout(() => {
-      if (lastClipEventAt.current < now) {
-        showToast("Tidak ada teks yang disalin. Pilih teks di HP dulu (tekan lama pada teks), lalu Ctrl/Cmd+C.");
-      }
-    }, 1500);
+      if (lastClipEventAt.current >= now) return;
+      mirrorKeycode(cut ? AKEY.X : AKEY.C, META.CTRL_ON | META.CTRL_LEFT_ON).catch(() => {});
+      window.setTimeout(() => {
+        if (lastClipEventAt.current < now) {
+          showToast(
+            "Tidak ada teks yang disalin. Pilih teks di HP dulu (tekan lama), lalu Ctrl/Cmd+C. Kalau aplikasinya tidak merespons, pakai menu Salin di HP: hasilnya tetap masuk ke komputer.",
+          );
+        }
+      }, 1200);
+    }, 700);
   }
   // ---- physical keyboard mode (scrcpy -K / UHID) ----
   // Reports are queued on one promise chain so they reach the phone in the order the
@@ -413,7 +510,8 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
       queuePhoneText(() => mirrorKeycode(AKEY.ENTER));
       if (uiRecording) setTestScript((t) => appendLine(t, "tekan enter"));
     }
-    showToast(`Teks "${s.label || s.text.slice(0, 20)}" dikirim`);
+    // the name may be the first characters of the text itself, so it stays out of the log
+    showToast(`Teks "${s.label || s.text.slice(0, 20)}" dikirim`, `Teks tersimpan dikirim (${s.text.length} karakter)`);
     focusKb();
   }
   const flushText = (el: HTMLTextAreaElement) => {
@@ -474,13 +572,18 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
   }
   function startRun() {
     if (steps.length === 0) return;
+    mirrorLog(`Auto-Clicker: mulai (${steps.length} langkah, ${loops === 0 ? "ulang terus" : `${loops}x`})`);
     runRef.current = runMacro(steps, loops, setRunningStep);
-    runRef.current.done.then(() => {
+    const handle = runRef.current;
+    handle.done.then(() => {
+      // only the run that is still current reports itself finished (not one replaced by Stop)
+      if (runRef.current === handle) mirrorLog("Auto-Clicker: selesai");
       runRef.current = null;
       setRunningStep(null);
     });
   }
   function stopRun() {
+    if (runRef.current) mirrorLog("Auto-Clicker: dihentikan");
     runRef.current?.stop();
     runRef.current = null;
     setRunningStep(null);
@@ -528,6 +631,7 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
         const w = dv.getUint32(0, false);
         const h = dv.getUint32(4, false);
         latestFrameRef.current = { width: w, height: h, rgba: new Uint8Array(buf, 8) };
+        recvCount.current++;
       };
 
       unStopped = await onMirrorStopped(() => {
@@ -601,6 +705,7 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
           const img = imageDataRef.current;
           if (ctx && img) {
             img.data.set(f.rgba);
+            paintCount.current++;
             ctx.putImageData(img, 0, 0);
             setStatus((s) => (s === "live" ? s : "live"));
             setDiag((d) => (d ? "" : d)); // a startup hiccup before the first frame is no longer relevant
@@ -633,6 +738,7 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
       setAudioState("off");
     }
     setAudioOn(next);
+    mirrorLog(`Suara HP: ${next ? "ON" : "OFF"} (mirror dimulai ulang)`);
   }
   useEffect(() => {
     const wake = () => {
@@ -671,6 +777,139 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
+  // ---- phone helpers ----
+  async function togglePhoneHelper(kind: "show_touches" | "demo") {
+    const on = kind === "demo" ? !demoOn : !touchesOn;
+    try {
+      await mirrorDeviceToggle(kind, on);
+      if (kind === "demo") setDemoOn(on);
+      else setTouchesOn(on);
+      showToast(
+        kind === "demo"
+          ? on
+            ? "Mode Demo: status bar bersih (12:00, baterai dan sinyal penuh)"
+            : "Mode Demo dimatikan"
+          : on
+            ? "Tampilkan Sentuhan: ON"
+            : "Tampilkan Sentuhan: OFF",
+      );
+    } catch (e) {
+      showToast(`Gagal mengubah ${kind === "demo" ? "Mode Demo" : "Tampilkan Sentuhan"}: ${String(e)}`);
+    }
+  }
+  // A restart (quality / audio / source change) stops the session, which restores the phone;
+  // turn the helpers that are still ON back on once the new session is live.
+  useEffect(() => {
+    if (status !== "live") return;
+    if (touchesOn) mirrorDeviceToggle("show_touches", true).catch(() => {});
+    if (demoOn) mirrorDeviceToggle("demo", true).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
+  // ---- window: always on top, 1:1 size ----
+  useEffect(() => {
+    if (onTop) getCurrentWindow().setAlwaysOnTop(true).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  async function toggleOnTop() {
+    const next = !onTop;
+    try {
+      await getCurrentWindow().setAlwaysOnTop(next);
+      setOnTop(next);
+      localStorage.setItem(LS_ON_TOP, next ? "1" : "0");
+      showToast(next ? "Jendela mirror selalu di atas" : "Jendela mirror tidak lagi selalu di atas");
+    } catch (e) {
+      showToast(`Gagal mengubah jendela: ${String(e)}`);
+    }
+  }
+  /** Resize the window so one pixel of the mirror stream is one screen point. */
+  async function sizeOneToOne() {
+    const canvas = canvasRef.current;
+    const box = canvas?.parentElement;
+    if (!canvas || !box || !frameSize) {
+      showToast("Belum ada gambar dari HP");
+      return;
+    }
+    const win = getCurrentWindow();
+    try {
+      if (await win.isMaximized()) await win.unmaximize();
+      // the canvas fills the dark box minus its 12px padding: grow the window by what is missing
+      const r = box.getBoundingClientRect();
+      let w = window.innerWidth + (frameSize.w + 24 - r.width);
+      let h = window.innerHeight + (frameSize.h + 24 - r.height);
+      const maxW = window.screen.availWidth;
+      const maxH = window.screen.availHeight;
+      const fits = w <= maxW && h <= maxH;
+      w = Math.min(w, maxW);
+      h = Math.min(h, maxH);
+      await win.setSize(new LogicalSize(Math.round(w), Math.round(h)));
+      showToast(
+        fits
+          ? `Ukuran 1:1 (${frameSize.w}×${frameSize.h})`
+          : "Layar komputer terlalu kecil untuk 1:1, jendela dibuat sebesar mungkin. Coba kualitas Hemat.",
+      );
+    } catch (e) {
+      showToast(`Gagal mengubah ukuran jendela: ${String(e)}`);
+    }
+  }
+
+  // ---- frame rate (only measured while the Setelan tab, where it is shown, is open) ----
+  useEffect(() => {
+    if (panelTab !== "settings" || status !== "live") {
+      setFps(null);
+      return;
+    }
+    recvCount.current = 0;
+    paintCount.current = 0;
+    const id = window.setInterval(() => {
+      setFps({ recv: recvCount.current, shown: paintCount.current });
+      recvCount.current = 0;
+      paintCount.current = 0;
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [panelTab, status]);
+
+  // ---- keyboard shortcuts (Alt / Option + key) ----
+  function runShortcut(id: ShortcutId) {
+    switch (id) {
+      case "home": return void mirrorKeycode(KEY.HOME).catch(() => {});
+      case "back": return void mirrorBack().catch(() => {});
+      case "recents": return void mirrorKeycode(KEY.APP_SWITCH).catch(() => {});
+      case "power": return void mirrorKeycode(KEY.POWER).catch(() => {});
+      case "rotate": return void mirrorRotate().catch(() => {});
+      case "notif": return void mirrorPanel("notifications").catch(() => {});
+      case "quick": return void mirrorPanel("settings").catch(() => {});
+      case "collapse": return void mirrorPanel("collapse").catch(() => {});
+      case "volUp": return void mirrorKeycode(KEY.VOLUME_UP).catch(() => {});
+      case "volDown": return void mirrorKeycode(KEY.VOLUME_DOWN).catch(() => {});
+      case "display": return void toggleDisplay();
+      case "screenshot": return void screenshot();
+      case "copyFrame": return void copyFrame();
+      case "inspector": return toggleInspector();
+    }
+  }
+  // Capture phase on window: runs before the keyboard sink, so a shortcut never reaches the
+  // phone as typing. Ignored while typing in one of the panel's own fields. Re-subscribed on
+  // every render so it always sees the current state.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey || status !== "live" || !isScreen) return;
+      const t = e.target as HTMLElement | null;
+      if (t && t !== kbRef.current && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) {
+        return;
+      }
+      const sc = SHORTCUTS.find((x) => x.code === e.code && !!x.shift === e.shiftKey);
+      if (!sc) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.repeat && !sc.repeat) return;
+      if (!e.repeat) mirrorLog(`Pintasan ${MOD_LABEL}+${sc.keys}: ${sc.label}`);
+      runShortcut(sc.id);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  });
+
   // ---- video source: screen or camera ----
   function chooseSource(next: MirrorSource) {
     if (next === source) return;
@@ -700,6 +939,7 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
     try {
       await mirrorDisplayPower(displayOff); // currently off -> turn on, and vice versa
       setDisplayOff(!displayOff);
+      mirrorLog(displayOff ? "Layar HP dinyalakan" : "Layar HP dimatikan (mirror tetap jalan)");
     } catch (e) {
       showToast(`Gagal mengubah layar HP: ${String(e)}`);
     }
@@ -733,14 +973,20 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
       showToast("Menyimpan rekaman…");
       try {
         const saved = await mirrorRecordStop();
-        showToast(saved.length > 0 ? `Rekaman disimpan (${saved.length} file)` : "Tidak ada rekaman yang tersimpan");
+        showToast(
+          saved.length > 0 ? `Rekaman disimpan ke ${shortPath(effectiveShotDir)} (${saved.length} file)` : "Tidak ada rekaman yang tersimpan",
+        );
       } catch (e) {
         showToast(`Gagal menyimpan rekaman: ${String(e)}`);
       }
       return;
     }
-    const dir = await open({ directory: true, multiple: false, title: "Pilih folder untuk menyimpan rekaman" });
-    if (typeof dir !== "string") return;
+    // same folder as screenshots (default: Downloads), no dialog
+    const dir = effectiveShotDir || (await downloadDir().catch(() => ""));
+    if (!dir) {
+      showToast("Folder tujuan belum diketahui. Klik Ubah untuk memilih folder simpan.");
+      return;
+    }
     try {
       await mirrorRecordStart(dir);
       setRecSecs(0);
@@ -892,6 +1138,7 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
     showToast(kind === "isi" ? "Ditambahkan. Isi nilainya di skrip Tes UI" : `Ditambahkan: ${line}`);
   }
   function toggleInspector() {
+    mirrorLog(`Inspector UI: ${inspecting ? "OFF" : "ON"}`);
     if (inspecting) {
       setInspecting(false);
       if (!uiRecording) setUiTree(null); // recording still needs the tree
@@ -1072,7 +1319,7 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
     const dir = await open({
       directory: true,
       multiple: false,
-      title: "Pilih folder simpan screenshot",
+      title: "Pilih folder simpan screenshot dan rekaman",
       defaultPath: effectiveShotDir || undefined,
     });
     if (typeof dir !== "string") return;
@@ -1082,11 +1329,15 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
     } catch {
       /* ignore */
     }
-    showToast(`Folder screenshot: ${shortPath(dir)}`);
+    showToast(`Folder simpan: ${shortPath(dir)}`);
   }
   async function pushFile() {
     const f = await open({ multiple: false, title: "Push file to device" });
-    if (typeof f === "string") mirrorPushFile(f).catch(() => {});
+    if (typeof f !== "string") return;
+    const name = f.split(/[/\\]/).pop() ?? f;
+    mirrorPushFile(f)
+      .then(() => showToast(`${name} dikirim ke folder Download HP`))
+      .catch((e) => showToast(`Gagal mengirim ${name}: ${String(e)}`));
   }
   async function rebootPhone() {
     const yes = await ask("HP akan di-restart dan mirror akan terputus. Lanjutkan?", {
@@ -1094,10 +1345,13 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
       kind: "warning",
     }).catch(() => false);
     if (!yes) return;
+    mirrorLog("Restart HP");
     mirrorReboot().catch((e) => showToast(`Gagal restart: ${String(e)}`));
   }
-  async function pcToPhone() {
-    void sendClipboardToPhone(false);
+  function pasteToPhone() {
+    // same as Ctrl/Cmd+V: hand over the PC clipboard, then press PASTE on the phone
+    doPaste();
+    focusKb();
   }
   function phoneToPc() {
     // Same as Ctrl/Cmd+C: press COPY on the phone. (The server never answers a plain
@@ -1209,7 +1463,11 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
               </div>
             )}
             {toast && (
-              <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-lg bg-black/75 px-3 py-1.5 text-[11px] font-medium text-white shadow-lg">
+              <div
+                role="status"
+                aria-live="polite"
+                className="pointer-events-none absolute left-1/2 top-3 z-20 w-max max-w-[90%] -translate-x-1/2 rounded-lg bg-black/85 px-3.5 py-2 text-center text-[12px] font-medium leading-snug text-white shadow-lg ring-1 ring-white/15"
+              >
                 {toast}
               </div>
             )}
@@ -1224,13 +1482,24 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* CONTROLS */}
-      <div className="flex w-[240px] shrink-0 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
+      <div className="flex w-[260px] shrink-0 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-2.5">
           <span className="text-[13px] font-semibold text-[var(--color-ink)]">Controls</span>
           <StatusPill status={status} />
           <div className="ml-auto flex items-center gap-1.5">
-            <HelpTip label="Pintasan mouse">
-              <p className="mb-1 font-semibold text-[var(--color-ink)]">Pintasan mouse</p>
+            <HelpTip label="Pintasan">
+              <p className="mb-1 font-semibold text-[var(--color-ink)]">Pintasan keyboard ({MOD_LABEL} + tombol)</p>
+              <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+                {SHORTCUTS.map((sc) => (
+                  <div key={sc.id} className="contents">
+                    <span className="font-mono text-[10px] text-[var(--color-ink)]">
+                      {MOD_LABEL}+{sc.keys}
+                    </span>
+                    <span>{sc.label}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mb-1 mt-2 font-semibold text-[var(--color-ink)]">Pintasan mouse</p>
               <p>Klik kanan = Kembali. Klik tengah = Home. Shift + geser = pinch-zoom (dua jari).</p>
               <p className="mt-1">Seret file ke jendela ini: APK / XAPK dipasang, file lain dikirim ke folder Download HP.</p>
             </HelpTip>
@@ -1244,13 +1513,17 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-3">
-          {meta && frameSize && (
-            <div className="mb-3 rounded-lg bg-[var(--color-bg)] px-2.5 py-2 text-[11px] text-[var(--color-ink-soft)]">
-              {meta.codec.toUpperCase()} · {frameSize.w}×{frameSize.h}
-            </div>
-          )}
+        <PanelTabs
+          tab={panelTab}
+          onChange={choosePanelTab}
+          badges={{
+            control: screenRec && panelTab !== "control",
+            settings: false,
+            debug: debugActive && panelTab !== "debug",
+          }}
+        />
 
+        <div ref={panelScrollRef} className="flex-1 overflow-auto p-3">
           {hint === "inject-denied" && (
             <div className="mb-3 rounded-lg bg-amber-50 px-2.5 py-2 text-[11px] leading-snug text-amber-800">
               <div className="flex items-start gap-1.5">
@@ -1297,293 +1570,383 @@ export function MirrorView({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          <Group title="Device">
-            <Ctrl icon={Power} label="Power" hint="Tekan tombol power HP (kunci/buka layar)." onClick={() => mirrorKeycode(KEY.POWER)} />
-            <VolumeRow
-              onUp={() => mirrorKeycode(KEY.VOLUME_UP).catch(() => {})}
-              onDown={() => mirrorKeycode(KEY.VOLUME_DOWN).catch(() => {})}
-            />
-            <Ctrl icon={RotateCcw} label="Restart" danger hint="Restart HP (ada konfirmasi dulu)." onClick={rebootPhone} />
-            <IconRow>
-              <IconBtn icon={RotateCw} label="Putar layar" onClick={() => mirrorRotate().catch(() => {})} />
-              <IconBtn icon={Bell} label="Notifikasi: buka panel notifikasi" onClick={() => mirrorPanel("notifications")} />
-              <IconBtn icon={LayoutGrid} label="Setelan cepat: WiFi, Bluetooth, dll" onClick={() => mirrorPanel("settings")} />
-              <IconBtn icon={EyeOff} label="Tutup panel notifikasi / setelan cepat" onClick={() => mirrorPanel("collapse")} />
-            </IconRow>
-            <IconRow>
-              <IconBtn icon={Settings} label="Setelan HP" onClick={() => mirrorOpen(INTENT.SETTINGS)} />
-              <IconBtn icon={Code2} label="Opsi Pengembang" onClick={() => mirrorOpen(INTENT.DEV_OPTIONS)} />
-              <IconBtn icon={Info} label="Tentang ponsel" onClick={() => mirrorOpen(INTENT.ABOUT)} />
-              <IconBtn
-                icon={displayOff ? Monitor : MonitorOff}
-                label={displayOff ? "Nyalakan layar HP" : "Matikan layar HP (mirror tetap jalan, hemat baterai)"}
-                active={displayOff}
-                onClick={toggleDisplay}
+          <div hidden={panelTab !== "control"}>
+            <Group
+              title="Device"
+              help={
+                <>
+                  <p className="font-semibold text-[var(--color-ink)]">Clipboard</p>
+                  <p>Ketik langsung dengan keyboard laptop. Pilih teks di HP (tekan lama), lalu Ctrl/Cmd+C atau Copy Text untuk menyalin ke komputer. Teks yang disalin lewat menu HP juga otomatis masuk ke clipboard komputer.</p>
+                  <p className="mt-1">Paste Text (atau Ctrl/Cmd+V) mengirim clipboard komputer ke HP lalu menempelkannya di kolom yang aktif.</p>
+                  <p className="mt-1 font-semibold text-[var(--color-ink)]">File</p>
+                  <p>Screenshot dan Rekam Layar langsung disimpan ke folder di bawah tombolnya (bawaan: Downloads), tanpa dialog. Salin Layar menyalin gambar layar ke clipboard komputer.</p>
+                </>
+              }
+            >
+              <Ctrl icon={Power} label="Power" hint="Tekan tombol power HP (kunci/buka layar)." onClick={() => mirrorKeycode(KEY.POWER)} />
+              <VolumeRow
+                onUp={() => mirrorKeycode(KEY.VOLUME_UP).catch(() => {})}
+                onDown={() => mirrorKeycode(KEY.VOLUME_DOWN).catch(() => {})}
               />
-            </IconRow>
-          </Group>
-
-          <Group
-            title="Sumber Video"
-            help={
-              <>
-                <p>Tampilkan layar HP atau salah satu kamera HP di komputer. Kamera butuh Android 12 ke atas dan hanya bisa dilihat: tidak ada sentuhan, ketikan, atau Inspector.</p>
-                <p className="mt-1">Berguna untuk menguji kamera atau memperlihatkan kamera ke layar besar. Kalau HP tidak mendukung, mirror menampilkan error dan kamu bisa kembali ke Layar.</p>
-              </>
-            }
-          >
-            <div className="flex gap-1 rounded-lg bg-[var(--color-surface-2)] p-1">
-              {(
-                [
-                  ["screen", "Layar"],
-                  ["camera-back", "Belakang"],
-                  ["camera-front", "Depan"],
-                ] as [MirrorSource, string][]
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  onClick={() => chooseSource(id)}
-                  title={id === "screen" ? "Layar HP" : `Kamera ${label.toLowerCase()} HP`}
-                  className={cn(
-                    "flex-1 rounded-md px-2 py-1 text-[11px] font-medium",
-                    source === id ? "bg-[var(--color-surface)] text-[var(--color-brand-600)] shadow-sm" : "text-[var(--color-ink-soft)]",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </Group>
-
-          <Group
-            title="Kualitas & Suara"
-            help={
-              <>
-                <p>Kualitas video: Hemat 720 px / 4 Mbps, Seimbang 1024 px / 8 Mbps, Tajam 1280 px / 12 Mbps.</p>
-                <p className="mt-1">Makin tajam makin berat di CPU. Mengganti kualitas atau suara me-restart mirror.</p>
-              </>
-            }
-          >
-            <div className="flex gap-1 rounded-lg bg-[var(--color-surface-2)] p-1">
-              {(Object.keys(QUALITY) as Quality[]).map((q) => (
-                <button
-                  key={q}
-                  onClick={() => chooseQuality(q)}
-                  title={QUALITY[q].hint}
-                  className={cn(
-                    "flex-1 rounded-md px-2 py-1 text-[11px] font-medium",
-                    quality === q ? "bg-[var(--color-surface)] text-[var(--color-brand-600)] shadow-sm" : "text-[var(--color-ink-soft)]",
-                  )}
-                >
-                  {QUALITY[q].label}
-                </button>
-              ))}
-            </div>
-            <Ctrl
-              icon={audioOn ? Volume2 : VolumeX}
-              label={audioOn ? "Suara HP: ON" : "Suara HP: OFF"}
-              hint="Teruskan suara HP ke komputer."
-              onClick={toggleAudio}
-              help={
-                <>
-                  {audioOn && (
-                    <p className="mb-1 font-semibold text-[var(--color-ink)]">
-                      {audioState === "on"
-                        ? "Suara HP diteruskan ke komputer."
-                        : audioState === "unsupported"
-                          ? "HP ini tidak mendukung penerusan suara (butuh Android 11+)."
-                          : audioState === "error"
-                            ? "Suara gagal dimulai."
-                            : "Menyambungkan suara…"}
-                    </p>
-                  )}
-                  <p>Teruskan suara HP ke komputer (butuh Android 11+).</p>
-                  <p className="mt-1">Di Android 12 ke bawah speaker HP jadi hening selama diteruskan. Mengubah ini me-restart mirror.</p>
-                </>
-              }
-            />
-            <Ctrl
-              icon={uhidOn ? Keyboard : KeyboardOff}
-              label={uhidOn ? "Keyboard Fisik: ON" : "Keyboard Fisik: OFF"}
-              hint="Pakai keyboard laptop sebagai keyboard fisik HP."
-              onClick={toggleUhid}
-              help={
-                <>
-                  <p>Seperti scrcpy -K: HP menganggap keyboard laptop sebagai keyboard USB, jadi keyboard layar HP tidak muncul saat mengetik.</p>
-                  <p className="mt-1">Karakter ditentukan layout keyboard fisik di HP (Setelan &gt; Keyboard fisik), jadi samakan dengan layout laptop. Cmd di Mac dikirim sebagai Ctrl.</p>
-                  <p className="mt-1">Kalau keyboard layar masih muncul, matikan &quot;Tampilkan keyboard virtual&quot; di pengaturan keyboard fisik HP.</p>
-                </>
-              }
-            />
-          </Group>
-
-          <Group
-            title="Clipboard (Salin-Tempel)"
-            help={
-              <>
-                <p>Ketik langsung dengan keyboard laptop.</p>
-                <p className="mt-1">Pilih teks di HP (tekan lama), lalu Ctrl/Cmd+C untuk menyalin ke komputer. Teks yang disalin lewat menu HP juga otomatis masuk ke clipboard komputer.</p>
-                <p className="mt-1">Ctrl/Cmd+V menempel ke HP, Ctrl/Cmd+A pilih semua.</p>
-              </>
-            }
-          >
-            <Ctrl icon={ArrowDownToLine} label="Kirim ke HP" hint="Kirim teks yang disalin di komputer ke clipboard HP." onClick={pcToPhone} />
-            <Ctrl icon={ArrowUpFromLine} label="Salin dari HP" hint="Salin teks yang sedang DIPILIH di HP ke clipboard komputer (sama dengan Ctrl/Cmd+C). Pilih teksnya dulu di HP." onClick={phoneToPc} />
-          </Group>
-
-          <Group
-            title="Teks Tersimpan"
-            help={
-              <>
-                <p>Simpan teks yang sering dipakai (email, kata sandi uji, nomor). Klik satu untuk langsung mengetiknya di kolom yang sedang aktif di HP.</p>
-                <p className="mt-1">Teks biasa diketik seperti keyboard. Teks dengan huruf non-ASCII, emoji, atau baris baru ditempel lewat clipboard HP, sehingga isi clipboard HP tertimpa.</p>
-                <p className="mt-1">Disimpan di komputer ini sebagai teks biasa. Jangan simpan kata sandi yang sebenarnya.</p>
-              </>
-            }
-          >
-            <SnippetsPanel onSend={sendSnippet} onFocusPhone={focusKb} />
-          </Group>
-
-          <Group title="File">
-            <Ctrl icon={Camera} label="Screenshot" hint="Ambil tangkapan layar HP dan langsung simpan ke folder di bawah (tanpa dialog)." onClick={screenshot} />
-            <div className="flex items-center gap-1.5 px-1 text-[10px] text-[var(--color-ink-faint)]">
-              <FolderIcon size={11} className="shrink-0" />
-              <span className="min-w-0 flex-1 truncate" title={effectiveShotDir || "Memuat folder Downloads…"}>
-                {effectiveShotDir ? shortPath(effectiveShotDir) : "Memuat…"}
-              </span>
-              <button
-                onClick={chooseShotDir}
-                title={`Ubah folder simpan screenshot${effectiveShotDir ? ` (sekarang: ${effectiveShotDir})` : ""}`}
-                className="no-drag shrink-0 rounded-md border border-[var(--color-border)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand-600)]"
-              >
-                Ubah
-              </button>
-            </div>
-            <Ctrl icon={Copy} label="Salin Tampilan" hint="Salin gambar layar (resolusi mirror) ke clipboard komputer." onClick={copyFrame} />
-            <Ctrl
-              icon={Video}
-              label={screenRec ? `Stop Rekam ${mmss(recSecs)}` : "Rekam Layar"}
-              danger={screenRec}
-              hint="Rekam layar HP ke file MP4 (tanpa suara). Dipecah per 3 menit dan disimpan ke folder yang kamu pilih saat berhenti."
-              onClick={toggleRecord}
-            />
-            <Ctrl icon={Upload} label="Kirim File" hint="Kirim file dari komputer ke folder Download HP." onClick={pushFile} />
-          </Group>
-
-          <Group
-            title="Debug"
-            help={
-              <>
-                <p>Inspector UI membaca hierarki tampilan HP dan menandai elemen di layar: hijau punya resource-id (semantic identifier), biru hanya punya label/teks, merah bisa diklik tapi tanpa id.</p>
-                <p className="mt-1">Saat aktif, klik tidak diteruskan ke HP. Klik elemen untuk melihat detail dan menyalin id atau XPath. Setelah layar HP berubah, tekan Muat ulang.</p>
-              </>
-            }
-          >
-            <Ctrl
-              icon={ScanSearch}
-              label={inspecting ? "Inspector UI: ON" : "Inspector UI: OFF"}
-              hint="Tandai elemen layar yang punya semantic identifier."
-              onClick={toggleInspector}
-            />
-            {inspecting && (
-              <div ref={inspectorRef}>
-                <InspectorPanel
-                  tree={uiTree}
-                  analysis={analysis}
-                  node={selId != null && uiTree ? (uiTree.nodes[selId] ?? null) : null}
-                  busy={uiBusy}
-                  stale={uiStale}
-                  onRefresh={refreshInspector}
-                  onCopy={copyText}
-                  onInsert={insertFromInspector}
+              <Ctrl icon={RotateCcw} label="Restart" danger hint="Restart HP (ada konfirmasi dulu)." onClick={rebootPhone} log={false} />
+              <IconRow>
+                <IconBtn icon={RotateCw} label="Putar layar" onClick={() => mirrorRotate().catch(() => {})} />
+                <IconBtn icon={Bell} label="Notifikasi: buka panel notifikasi" onClick={() => mirrorPanel("notifications")} />
+                <IconBtn icon={ToggleRight} label="Setelan cepat: WiFi, Bluetooth, dll" onClick={() => mirrorPanel("settings")} />
+                <IconBtn icon={PanelTopClose} label="Tutup panel notifikasi / setelan cepat" onClick={() => mirrorPanel("collapse")} />
+              </IconRow>
+              <IconRow>
+                <IconBtn icon={Settings} label="Setelan HP" onClick={() => mirrorOpen(INTENT.SETTINGS)} />
+                <IconBtn icon={Code2} label="Opsi Pengembang" onClick={() => mirrorOpen(INTENT.DEV_OPTIONS)} />
+                <IconBtn icon={Info} label="Tentang ponsel" onClick={() => mirrorOpen(INTENT.ABOUT)} />
+                <IconBtn
+                  icon={displayOff ? Monitor : MonitorOff}
+                  label={displayOff ? "Nyalakan layar HP" : "Matikan layar HP (mirror tetap jalan, hemat baterai)"}
+                  active={displayOff}
+                  onClick={toggleDisplay}
+                  log={false}
                 />
+              </IconRow>
+              <HalfRow>
+                <HalfBtn icon={ArrowUpFromLine} label="Copy Text" hint="Salin teks yang sedang DIPILIH di HP ke clipboard komputer (sama dengan Ctrl/Cmd+C)." onClick={phoneToPc} />
+                <HalfBtn icon={ArrowDownToLine} label="Paste Text" hint="Kirim teks dari clipboard komputer ke HP dan tempel di kolom yang aktif (sama dengan Ctrl/Cmd+V)." onClick={pasteToPhone} />
+              </HalfRow>
+              <HalfRow>
+                <HalfBtn icon={Camera} label="Screenshot" hint={`Ambil tangkapan layar HP dan simpan ke folder di bawah. Pintasan: ${MOD_LABEL}+Shift+S`} onClick={screenshot} />
+                <HalfBtn icon={Copy} label="Salin Layar" hint={`Salin gambar layar (resolusi mirror) ke clipboard komputer. Pintasan: ${MOD_LABEL}+C`} onClick={copyFrame} />
+              </HalfRow>
+              <Ctrl
+                icon={Video}
+                label={screenRec ? `Stop Rekam ${mmss(recSecs)}` : "Rekam Layar"}
+                danger={screenRec}
+                hint="Rekam layar HP ke file MP4 (tanpa suara), dipecah per 3 menit, disimpan ke folder di bawah saat berhenti."
+                onClick={toggleRecord}
+                log={screenRec ? "Rekam Layar: berhenti" : "Rekam Layar: mulai"}
+              />
+              <div className="flex items-center gap-1.5 rounded-lg bg-[var(--color-surface-2)] py-1 pl-2.5 pr-1 text-[10.5px] text-[var(--color-ink-soft)]">
+                <FolderIcon size={12} className="shrink-0 text-[var(--color-ink-faint)]" />
+                <span
+                  className="min-w-0 flex-1 truncate"
+                  title={effectiveShotDir ? `Folder simpan screenshot dan rekaman: ${effectiveShotDir}` : "Memuat folder Downloads…"}
+                >
+                  {effectiveShotDir ? shortPath(effectiveShotDir) : "Memuat…"}
+                </span>
+                <button
+                  onClick={chooseShotDir}
+                  title={`Ubah folder simpan screenshot dan rekaman${effectiveShotDir ? ` (sekarang: ${effectiveShotDir})` : ""}`}
+                  className="no-drag shrink-0 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-[10.5px] font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand-600)]"
+                >
+                  Ubah
+                </button>
+              </div>
+              <Ctrl icon={Upload} label="Kirim File" hint="Kirim file dari komputer ke folder Download HP." onClick={pushFile} log={false} />
+            </Group>
+
+            <Group
+              title="Teks Tersimpan"
+              help={
+                <>
+                  <p>Simpan teks yang sering dipakai (email, kata sandi uji, nomor). Klik satu untuk langsung mengetiknya di kolom yang sedang aktif di HP.</p>
+                  <p className="mt-1">Teks biasa diketik seperti keyboard. Teks dengan huruf non-ASCII, emoji, atau baris baru ditempel lewat clipboard HP, sehingga isi clipboard HP tertimpa.</p>
+                  <p className="mt-1">Disimpan di komputer ini sebagai teks biasa. Jangan simpan kata sandi yang sebenarnya.</p>
+                </>
+              }
+            >
+              <SnippetsPanel onSend={sendSnippet} onFocusPhone={focusKb} />
+            </Group>
+          </div>
+
+          <div hidden={panelTab !== "settings"}>
+            {meta && frameSize && (
+              <div className="mb-3 rounded-lg bg-[var(--color-bg)] px-2.5 py-2 text-[11px] text-[var(--color-ink-soft)]">
+                <div>
+                  {meta.codec.toUpperCase()} · {frameSize.w}×{frameSize.h}
+                </div>
+                {fps && (
+                  <div
+                    className="mt-1 flex items-center gap-1.5"
+                    title="Diterima: frame yang dikirim HP per detik. Tampil: yang sempat digambar. Kalau Tampil jauh lebih kecil, komputer kewalahan: pilih kualitas lebih rendah. HP hanya mengirim frame saat layar berubah, jadi angka rendah di layar diam itu normal."
+                  >
+                    <Gauge size={12} className="shrink-0" />
+                    <span>
+                      Diterima {fps.recv} fps · Tampil{" "}
+                      <span className={fps.recv > 5 && fps.shown < fps.recv * 0.7 ? "font-semibold text-amber-600" : ""}>{fps.shown} fps</span>
+                    </span>
+                  </div>
+                )}
               </div>
             )}
-          </Group>
 
-          <Group
-            title="Tes UI"
-            help={
-              <>
-                <p>Skrip tes sederhana: tiap baris mencari elemen di layar HP (lewat resource-id, lalu label, lalu teks), lalu menekan, mengisi, atau memeriksanya. Berhenti di baris pertama yang gagal.</p>
-                <p className="mt-1 font-mono text-[10px] leading-snug">
-                  klik btn_login
-                  <br />
-                  isi login_email = user@test.com
-                  <br />
-                  tunggu home_title
-                  <br />
-                  ada home_title
-                  <br />
-                  tidak ada error_box
-                  <br />
-                  cek home_title = Halo
-                  <br />
-                  jeda 2
-                </p>
-                <p className="mt-1 font-mono text-[10px] leading-snug">
-                  jika ada popup_ok
-                  <br />
-                  &nbsp;&nbsp;klik popup_ok
-                  <br />
-                  lainnya
-                  <br />
-                  &nbsp;&nbsp;jeda 1
-                  <br />
-                  selesai
-                  <br />
-                  ulangi 3 ... selesai
-                  <br />
-                  tekan enter
-                </p>
-                <p className="mt-1">Kalau satu langkah gagal, screenshot HP disimpan otomatis ke folder screenshot dan hasilnya bisa disimpan lewat &quot;Simpan hasil&quot;.</p>
-                <p className="mt-1">Baris berawalan # adalah komentar. Isi mengganti teks yang sudah ada. Pakai Inspector UI untuk melihat id yang tersedia.</p>
-              </>
-            }
-          >
-            <UiTestPanel
-              script={testScript}
-              setScript={setTestScript}
-              recording={uiRecording}
-              onToggleRecord={toggleUiRecord}
-              live={status === "live"}
-              onDump={async () => parseUiDump(await mirrorUiDump())}
-              onTap={async (nx, ny) => {
-                await mirrorTouch("down", nx, ny);
-                await new Promise((r) => setTimeout(r, 60));
-                await mirrorTouch("up", nx, ny);
+            <Group
+              title="Sumber Video"
+              help={
+                <>
+                  <p>Tampilkan layar HP atau salah satu kamera HP di komputer. Kamera butuh Android 12 ke atas dan hanya bisa dilihat: tidak ada sentuhan, ketikan, atau Inspector.</p>
+                  <p className="mt-1">Berguna untuk menguji kamera atau memperlihatkan kamera ke layar besar. Kalau HP tidak mendukung, mirror menampilkan error dan kamu bisa kembali ke Layar.</p>
+                </>
+              }
+            >
+              <div className="flex gap-1 rounded-lg bg-[var(--color-surface-2)] p-1">
+                {(
+                  [
+                    ["screen", "Layar"],
+                    ["camera-back", "Belakang"],
+                    ["camera-front", "Depan"],
+                  ] as [MirrorSource, string][]
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => chooseSource(id)}
+                    title={id === "screen" ? "Layar HP" : `Kamera ${label.toLowerCase()} HP`}
+                    className={cn(
+                      "flex-1 rounded-md px-2 py-1 text-[11px] font-medium",
+                      source === id ? "bg-[var(--color-surface)] text-[var(--color-brand-600)] shadow-sm" : "text-[var(--color-ink-soft)]",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </Group>
+
+            <Group
+              title="Kualitas & Suara"
+              help={
+                <>
+                  <p>Kualitas video: Hemat 720 px / 4 Mbps, Seimbang 1024 px / 8 Mbps, Tajam 1280 px / 12 Mbps.</p>
+                  <p className="mt-1">Makin tajam makin berat di CPU. Mengganti kualitas atau suara me-restart mirror.</p>
+                </>
+              }
+            >
+              <div className="flex gap-1 rounded-lg bg-[var(--color-surface-2)] p-1">
+                {(Object.keys(QUALITY) as Quality[]).map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => chooseQuality(q)}
+                    title={QUALITY[q].hint}
+                    className={cn(
+                      "flex-1 rounded-md px-2 py-1 text-[11px] font-medium",
+                      quality === q ? "bg-[var(--color-surface)] text-[var(--color-brand-600)] shadow-sm" : "text-[var(--color-ink-soft)]",
+                    )}
+                  >
+                    {QUALITY[q].label}
+                  </button>
+                ))}
+              </div>
+              <Ctrl
+                icon={audioOn ? Volume2 : VolumeX}
+                label={audioOn ? "Suara HP: ON" : "Suara HP: OFF"}
+                hint="Teruskan suara HP ke komputer."
+                onClick={toggleAudio}
+                log={false}
+                help={
+                  <>
+                    {audioOn && (
+                      <p className="mb-1 font-semibold text-[var(--color-ink)]">
+                        {audioState === "on"
+                          ? "Suara HP diteruskan ke komputer."
+                          : audioState === "unsupported"
+                            ? "HP ini tidak mendukung penerusan suara (butuh Android 11+)."
+                            : audioState === "error"
+                              ? "Suara gagal dimulai."
+                              : "Menyambungkan suara…"}
+                      </p>
+                    )}
+                    <p>Teruskan suara HP ke komputer (butuh Android 11+).</p>
+                    <p className="mt-1">Di Android 12 ke bawah speaker HP jadi hening selama diteruskan. Mengubah ini me-restart mirror.</p>
+                  </>
+                }
+              />
+              <Ctrl
+                icon={uhidOn ? Keyboard : KeyboardOff}
+                label={uhidOn ? "Keyboard Fisik: ON" : "Keyboard Fisik: OFF"}
+                hint="Pakai keyboard laptop sebagai keyboard fisik HP."
+                onClick={toggleUhid}
+                log={false}
+                help={
+                  <>
+                    <p>Seperti scrcpy -K: HP menganggap keyboard laptop sebagai keyboard USB, jadi keyboard layar HP tidak muncul saat mengetik.</p>
+                    <p className="mt-1">Karakter ditentukan layout keyboard fisik di HP (Setelan &gt; Keyboard fisik), jadi samakan dengan layout laptop. Cmd di Mac dikirim sebagai Ctrl.</p>
+                    <p className="mt-1">Kalau keyboard layar masih muncul, matikan &quot;Tampilkan keyboard virtual&quot; di pengaturan keyboard fisik HP.</p>
+                  </>
+                }
+              />
+            </Group>
+
+            <Group
+              title="Tampilan HP"
+              help={
+                <>
+                  <p>Mode Demo membuat status bar HP bersih untuk screenshot: jam 12:00, baterai dan sinyal penuh, ikon notifikasi disembunyikan.</p>
+                  <p className="mt-1">Tampilkan Sentuhan menampilkan titik di tempat layar disentuh, berguna untuk rekaman layar.</p>
+                  <p className="mt-1">Keduanya dikembalikan seperti semula saat dimatikan atau saat mirror ditutup.</p>
+                </>
+              }
+            >
+              <Ctrl
+                icon={Clapperboard}
+                label={demoOn ? "Mode Demo: ON" : "Mode Demo: OFF"}
+                hint="Status bar bersih untuk screenshot (jam 12:00, baterai dan sinyal penuh)."
+                onClick={() => void togglePhoneHelper("demo")}
+                log={false}
+              />
+              <Ctrl
+                icon={Pointer}
+                label={touchesOn ? "Tampilkan Sentuhan: ON" : "Tampilkan Sentuhan: OFF"}
+                hint="Tampilkan titik sentuhan di layar HP (terlihat di rekaman)."
+                onClick={() => void togglePhoneHelper("show_touches")}
+                log={false}
+              />
+            </Group>
+
+            <Group
+              title="Jendela"
+              help={
+                <>
+                  <p>Selalu di atas: jendela mirror tetap terlihat di atas aplikasi lain, misalnya di samping editor kode.</p>
+                  <p className="mt-1">Ukuran 1:1: jendela diubah supaya satu piksel gambar mirror sama dengan satu titik di layar komputer, jadi gambarnya paling tajam. Ukurannya mengikuti kualitas yang dipilih.</p>
+                </>
+              }
+            >
+              <Ctrl
+                icon={Pin}
+                label={onTop ? "Selalu di Atas: ON" : "Selalu di Atas: OFF"}
+                hint="Jendela mirror selalu di atas jendela lain."
+                onClick={() => void toggleOnTop()}
+                log={false}
+              />
+              <Ctrl
+                icon={Maximize2}
+                label="Ukuran 1:1"
+                hint="Ubah ukuran jendela supaya gambar mirror tampil 1:1 (paling tajam)."
+                onClick={() => void sizeOneToOne()}
+                log={false}
+              />
+            </Group>
+          </div>
+
+          <div hidden={panelTab !== "debug"}>
+            <Group
+              title="Inspector UI"
+              help={
+                <>
+                  <p>Inspector UI membaca hierarki tampilan HP dan menandai elemen di layar: hijau punya resource-id (semantic identifier), biru hanya punya label/teks, merah bisa diklik tapi tanpa id.</p>
+                  <p className="mt-1">Saat aktif, klik tidak diteruskan ke HP. Klik elemen untuk melihat detail dan menyalin id atau XPath. Setelah layar HP berubah, tekan Muat ulang.</p>
+                </>
+              }
+            >
+              <Ctrl
+                icon={ScanSearch}
+                label={inspecting ? "Inspector UI: ON" : "Inspector UI: OFF"}
+                hint="Tandai elemen layar yang punya semantic identifier."
+                onClick={toggleInspector}
+                log={false}
+              />
+              {inspecting && (
+                <div ref={inspectorRef}>
+                  <InspectorPanel
+                    tree={uiTree}
+                    analysis={analysis}
+                    node={selId != null && uiTree ? (uiTree.nodes[selId] ?? null) : null}
+                    busy={uiBusy}
+                    stale={uiStale}
+                    onRefresh={refreshInspector}
+                    onCopy={copyText}
+                    onInsert={insertFromInspector}
+                  />
+                </div>
+              )}
+            </Group>
+
+            <Group
+              title="Tes UI"
+              help={
+                <>
+                  <p>Skrip tes sederhana: tiap baris mencari elemen di layar HP (lewat resource-id, lalu label, lalu teks), lalu menekan, mengisi, atau memeriksanya. Berhenti di baris pertama yang gagal.</p>
+                  <p className="mt-1 font-mono text-[10px] leading-snug">
+                    klik btn_login
+                    <br />
+                    isi login_email = user@test.com
+                    <br />
+                    tunggu home_title
+                    <br />
+                    ada home_title
+                    <br />
+                    tidak ada error_box
+                    <br />
+                    cek home_title = Halo
+                    <br />
+                    jeda 2
+                  </p>
+                  <p className="mt-1 font-mono text-[10px] leading-snug">
+                    jika ada popup_ok
+                    <br />
+                    &nbsp;&nbsp;klik popup_ok
+                    <br />
+                    lainnya
+                    <br />
+                    &nbsp;&nbsp;jeda 1
+                    <br />
+                    selesai
+                    <br />
+                    ulangi 3 ... selesai
+                    <br />
+                    tekan enter
+                  </p>
+                  <p className="mt-1">Kalau satu langkah gagal, screenshot HP disimpan otomatis ke folder screenshot dan hasilnya bisa disimpan lewat &quot;Simpan hasil&quot;.</p>
+                  <p className="mt-1">
+                    Variabel: tulis <span className="font-mono">{"{Nama}"}</span> di nilai isi / cek untuk memakai Teks Tersimpan bernama itu, mis.{" "}
+                    <span className="font-mono">{"isi login_email = {Email tes}"}</span>.
+                  </p>
+                  <p className="mt-1">Suite menjalankan beberapa skrip tersimpan berurutan; skrip yang gagal tidak menghentikan yang lain.</p>
+                  <p className="mt-1">Baris berawalan # adalah komentar. Isi mengganti teks yang sudah ada. Pakai Inspector UI untuk melihat id yang tersedia.</p>
+                </>
+              }
+            >
+              <UiTestPanel
+                script={testScript}
+                setScript={setTestScript}
+                recording={uiRecording}
+                onToggleRecord={toggleUiRecord}
+                live={status === "live"}
+                onDump={async () => parseUiDump(await mirrorUiDump())}
+                onTap={async (nx, ny) => {
+                  await mirrorTouch("down", nx, ny);
+                  await new Promise((r) => setTimeout(r, 60));
+                  await mirrorTouch("up", nx, ny);
+                }}
+                onKey={(k, m) => mirrorKeycode(k, m)}
+                onType={async (t) => {
+                  await (isDirectlyTypable(t) ? mirrorText(t) : mirrorPasteText(t));
+                }}
+                onFocusPhone={focusKb}
+                onScreenshot={async () => mirrorScreenshot(effectiveShotDir || (await downloadDir()))}
+                deviceName={[device.brand, device.model].filter(Boolean).join(" ") || device.serial}
+              />
+            </Group>
+
+            <AutoClickerPanel
+              mode={mode}
+              setMode={setMode}
+              steps={steps}
+              recording={recording}
+              setRecording={(v) => {
+                setRecording(v);
+                recLastRef.current = 0;
               }}
-              onKey={(k, m) => mirrorKeycode(k, m)}
-              onType={async (t) => {
-                await (isDirectlyTypable(t) ? mirrorText(t) : mirrorPasteText(t));
-              }}
-              onFocusPhone={focusKb}
-              onScreenshot={async () => mirrorScreenshot(effectiveShotDir || (await downloadDir()))}
-              deviceName={[device.brand, device.model].filter(Boolean).join(" ") || device.serial}
+              isRunning={isRunning}
+              loops={loops}
+              setLoops={setLoops}
+              onStart={startRun}
+              onStop={stopRun}
+              onRemove={removeStep}
+              onClear={clearSteps}
+              onUpdate={(id, patch) =>
+                setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+              }
+              setSteps={setSteps}
             />
-          </Group>
-
-          <AutoClickerPanel
-            mode={mode}
-            setMode={setMode}
-            steps={steps}
-            recording={recording}
-            setRecording={(v) => {
-              setRecording(v);
-              recLastRef.current = 0;
-            }}
-            isRunning={isRunning}
-            loops={loops}
-            setLoops={setLoops}
-            onStart={startRun}
-            onStop={stopRun}
-            onRemove={removeStep}
-            onClear={clearSteps}
-            onUpdate={(id, patch) =>
-              setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
-            }
-            setSteps={setSteps}
-          />
+          </div>
         </div>
 
         {/* Android nav bar */}
@@ -1627,6 +1990,7 @@ function Ctrl({
   danger,
   hint,
   help,
+  log,
 }: {
   icon: typeof Power;
   label: string;
@@ -1635,10 +1999,15 @@ function Ctrl({
   hint?: string;
   /** when set, a "?" button is placed to the right of the button and shows this on hover */
   help?: React.ReactNode;
+  /** line for the Command Log on click; default the label, false when the handler logs itself */
+  log?: string | false;
 }) {
   const button = (
     <button
-      onClick={() => onClick()}
+      onClick={() => {
+        if (log !== false) mirrorLog(log ?? label);
+        onClick();
+      }}
       title={hint ?? label}
       className={cn(
         "no-drag flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
@@ -1690,6 +2059,69 @@ function VolumeRow({ onUp, onDown }: { onUp: () => void; onDown: () => void }) {
   );
 }
 
+const PANEL_TABS: { id: PanelTab; label: string; icon: typeof Power; hint: string }[] = [
+  { id: "control", label: "Kontrol", icon: MousePointerClick, hint: "Tombol HP, clipboard, screenshot, rekam, teks tersimpan" },
+  { id: "settings", label: "Setelan", icon: SlidersHorizontal, hint: "Sumber video, kualitas, suara, keyboard fisik" },
+  { id: "debug", label: "Debug", icon: Bug, hint: "Inspector UI, Tes UI, Auto-Clicker" },
+];
+
+/** Tabs at the top of the right-hand panel. A dot marks a hidden tab with something running. */
+function PanelTabs({
+  tab,
+  onChange,
+  badges,
+}: {
+  tab: PanelTab;
+  onChange: (t: PanelTab) => void;
+  badges: Record<PanelTab, boolean>;
+}) {
+  return (
+    <div role="tablist" className="flex gap-1 border-b border-[var(--color-border)] bg-[var(--color-surface-2)] p-1">
+      {PANEL_TABS.map(({ id, label, icon: Icon, hint }) => (
+        <button
+          key={id}
+          role="tab"
+          aria-selected={tab === id}
+          onClick={() => onChange(id)}
+          title={badges[id] ? `${hint} (ada yang sedang aktif)` : hint}
+          className={cn(
+            "no-drag relative flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[12px] font-medium transition-colors",
+            tab === id
+              ? "bg-[var(--color-surface)] text-[var(--color-brand-600)] shadow-sm"
+              : "text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]",
+          )}
+        >
+          <Icon size={13} className="shrink-0" />
+          <span>{label}</span>
+          {badges[id] && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function HalfRow({ children }: { children: React.ReactNode }) {
+  return <div className="grid grid-cols-2 gap-1.5">{children}</div>;
+}
+
+/**
+ * Half-width button for two-per-row actions, label on one line. Sized for the 260px panel:
+ * (260 - 2 x 12 padding - 6 gap) / 2 = 115px per button, minus border, padding, icon and gap
+ * leaves 81px; the longest label ("Screenshot", 12px medium) measures about 66px on macOS.
+ */
+function HalfBtn({ icon: Icon, label, hint, onClick }: { icon: typeof Power; label: string; hint: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={() => onClick()}
+      title={hint}
+      className="no-drag flex h-[38px] min-w-0 items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 text-[12px] font-medium text-[var(--color-ink)] transition-colors hover:border-[var(--color-brand)] hover:bg-[var(--color-brand-50)]"
+    >
+      <Icon size={14} className="shrink-0 text-[var(--color-brand-600)]" />
+      <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
+    </button>
+  );
+}
+
 function IconRow({ children }: { children: React.ReactNode }) {
   return <div className="flex gap-1.5">{children}</div>;
 }
@@ -1700,15 +2132,21 @@ function IconBtn({
   label,
   onClick,
   active,
+  log,
 }: {
   icon: typeof Power;
   label: string;
   onClick: () => void;
   active?: boolean;
+  /** line for the Command Log on click; default the label, false when the handler logs itself */
+  log?: string | false;
 }) {
   return (
     <button
-      onClick={() => onClick()}
+      onClick={() => {
+        if (log !== false) mirrorLog(log ?? label);
+        onClick();
+      }}
       title={label}
       aria-label={label}
       className={cn(
@@ -1726,7 +2164,10 @@ function IconBtn({
 function NavBtn({ icon: Icon, label, onClick }: { icon: typeof Square; label: string; onClick: () => void }) {
   return (
     <button
-      onClick={onClick}
+      onClick={() => {
+        mirrorLog(label);
+        onClick();
+      }}
       title={label}
       className="no-drag flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-ink-soft)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]"
     >

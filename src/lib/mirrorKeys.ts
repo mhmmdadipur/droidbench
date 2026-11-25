@@ -32,6 +32,8 @@ export const AKEY = {
   MOVE_HOME: 122,
   MOVE_END: 123,
   A: 29,
+  C: 31,
+  X: 52,
   Z: 54,
   Y: 53,
 } as const;
@@ -41,6 +43,7 @@ export const META = {
   SHIFT_ON: 0x1,
   ALT_ON: 0x2,
   CTRL_ON: 0x1000,
+  CTRL_LEFT_ON: 0x2000,
 } as const;
 
 /** DOM `KeyboardEvent.key` -> Android keycode for non-text keys. */

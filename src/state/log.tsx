@@ -69,8 +69,8 @@ export function LogProvider({ children }: { children: ReactNode }) {
       if (d.id === runningIdRef.current) {
         push(
           d.success
-            ? `✓ done (exit ${d.code ?? 0})`
-            : `✗ failed (exit ${d.code ?? "?"})`,
+            ? `done (exit ${d.code ?? 0})`
+            : `failed (exit ${d.code ?? "?"})`,
           d.success ? "system" : "stderr",
         );
         runningIdRef.current = null;
@@ -93,6 +93,10 @@ export function LogProvider({ children }: { children: ReactNode }) {
       listen("mirror-stopped", () => push("[mirror] stopped", "system")).then((u) =>
         mirrorUnlisten.push(u),
       );
+      // notices, setting changes, button actions and test results from the mirror window
+      listen<{ text: string; level: "info" | "error" }>("mirror-log", (e) =>
+        push(`[mirror] ${e.payload.text}`, e.payload.level === "error" ? "stderr" : "system"),
+      ).then((u) => mirrorUnlisten.push(u));
     });
 
     return () => {

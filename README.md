@@ -225,6 +225,12 @@ disimpan ke file teks.
 **Kamera HP:** jendela mirror bisa menampilkan kamera belakang atau depan (Android 12+, hanya
 lihat). **Daftar debloat universal** bisa diperbarui dari internet lewat tab Aplikasi.
 
+**Jendela mirror (0.6):** panel kanan dibagi 3 tab (Kontrol, Setelan, Debug); Mode Demo
+(status bar bersih untuk screenshot) dan Tampilkan Sentuhan, keduanya dikembalikan saat mirror
+ditutup; indikator FPS; jendela Selalu di Atas dan Ukuran 1:1; pintasan keyboard Alt/Option +
+tombol (daftar di tombol `?`); variabel `{Nama}` dari Teks Tersimpan dan Suite di Tes UI; semua
+notifikasi dan aksi mirror tercatat di Command Log.
+
 **Lainnya:** pilih HP kalau lebih dari satu tersambung (kartu Status Perangkat), tab
 **Terminal** (`adb shell` dengan batas waktu 30 detik), pairing ADB nirkabel dengan kode
 (Android 11+), simpan laporan Diagnostik ke file `.txt`, Backup Penyimpanan ke PC plus

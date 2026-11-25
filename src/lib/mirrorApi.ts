@@ -1,6 +1,6 @@
 // Mirror (embedded scrcpy) command + event bindings.
 import { invoke, Channel } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 export interface MirrorMeta {
   device_name: string;
@@ -103,6 +103,10 @@ export function mirrorPanel(kind: "notifications" | "settings" | "collapse"): Pr
   return invoke("mirror_panel", { kind });
 }
 /** Reboot the phone (adb reboot). */
+/** Turn a phone helper on / off: "show_touches" or "demo" (status bar demo mode). Restored on stop. */
+export function mirrorDeviceToggle(kind: "show_touches" | "demo", on: boolean): Promise<void> {
+  return invoke("mirror_device_toggle", { kind, on });
+}
 export function mirrorReboot(): Promise<void> {
   return invoke("mirror_reboot");
 }
@@ -160,6 +164,15 @@ export function onMirrorDiag(cb: (msg: string) => void): Promise<UnlistenFn> {
 export function onMirrorHint(cb: (kind: string) => void): Promise<UnlistenFn> {
   return listen<string>("mirror-hint", (e) => cb(e.payload));
 }
+/**
+ * Write a line to the Command Log of the main window. The mirror is a separate webview
+ * without the log, so it broadcasts an event that the main window's LogProvider listens to.
+ * Never pass typed text or clipboard contents: only what happened.
+ */
+export function mirrorLog(text: string, level: "info" | "error" = "info"): void {
+  emit("mirror-log", { text, level }).catch(() => {});
+}
+
 export function onMirrorStopped(cb: () => void): Promise<UnlistenFn> {
   return listen("mirror-stopped", () => cb());
 }

@@ -274,3 +274,51 @@ export function recordText(script: string, text: string): string {
   }
   return appendLine(script, `# diketik tanpa kolom yang diketuk: ${flat}`);
 }
+
+/**
+ * Variables: `{Name}` in an `isi` / `cek` value is replaced by the Saved Text (Teks Tersimpan)
+ * whose name is Name (case-insensitive). Test data then lives in one place instead of in every
+ * script. Unknown names are reported, not left in the text.
+ */
+const VAR = /\{([^{}\n]+)\}/g;
+
+export function resolveVars(text: string, vars: Map<string, string>): { text: string; missing: string[] } {
+  const missing: string[] = [];
+  const out = text.replace(VAR, (whole, raw: string) => {
+    const v = vars.get(raw.trim().toLowerCase());
+    if (v === undefined) {
+      missing.push(raw.trim());
+      return whole;
+    }
+    return v;
+  });
+  return { text: out, missing };
+}
+
+/** Saved texts as a lookup table for resolveVars (later duplicates of a name lose). */
+export function varTable(list: { label: string; text: string }[]): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const s of list) {
+    const k = s.label.trim().toLowerCase();
+    if (k && !m.has(k)) m.set(k, s.text);
+  }
+  return m;
+}
+
+/** Every unknown variable used anywhere in the steps, as parse-style errors. */
+export function varErrors(steps: TestStep[], vars: Map<string, string>): { line: number; message: string }[] {
+  const errs: { line: number; message: string }[] = [];
+  const walk = (list: TestStep[]) => {
+    for (const s of list) {
+      if (s.kind === "isi" || s.kind === "cek") {
+        for (const name of resolveVars(s.value, vars).missing) {
+          errs.push({ line: s.line, message: `variabel {${name}} tidak ada di Teks Tersimpan` });
+        }
+      }
+      walk(s.body ?? []);
+      walk(s.elseBody ?? []);
+    }
+  };
+  walk(steps);
+  return errs;
+}

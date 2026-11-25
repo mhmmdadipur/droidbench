@@ -43,6 +43,9 @@ pub struct MirrorState {
     pub size: Arc<Mutex<(u32, u32)>>,
     pub socket_name: Arc<Mutex<Option<String>>>,
     pub rec: Arc<Mutex<Option<RecSession>>>,
+    /// Phone settings changed while mirroring (show touches, demo mode), each with the adb
+    /// commands that put the phone back the way it was. Run when turned off or on stop.
+    pub restore: Arc<Mutex<Vec<(String, Vec<Vec<String>>)>>>,
 }
 
 /// An in-progress screen recording (device-side `screenrecord`, in 180 s chunks).
@@ -435,6 +438,14 @@ async fn decode_au(
 pub async fn mirror_stop(app: AppHandle, state: State<'_, MirrorState>) -> Result<(), String> {
     // don't lose a recording in progress when the mirror window closes
     let _ = finish_recording(&app, &state.rec).await;
+    // put back phone settings changed during the session (show touches, demo mode)
+    let pending: Vec<_> = state.restore.lock().await.drain(..).collect();
+    if !pending.is_empty() {
+        let adb = resolve_tool(&app, "adb");
+        for (_, cmds) in pending {
+            run_restore(&adb, &cmds).await;
+        }
+    }
     *state.running.lock().await = false;
     *state.control.lock().await = None;
     let adb = resolve_tool(&app, "adb");
@@ -797,6 +808,88 @@ pub async fn mirror_reboot(app: AppHandle) -> Result<(), String> {
     run_adb(&adb, &["reboot"]).await
 }
 
+async fn run_restore(adb: &str, cmds: &[Vec<String>]) {
+    for c in cmds {
+        let args: Vec<&str> = c.iter().map(String::as_str).collect();
+        let _ = run_adb(adb, &args).await;
+    }
+}
+
+/// adb args that put a setting back to `orig` (what `settings get` printed before).
+fn restore_setting(namespace: &str, key: &str, orig: &str) -> Vec<String> {
+    let orig = orig.trim();
+    if orig.is_empty() || orig == "null" {
+        vec!["shell".into(), "settings".into(), "delete".into(), namespace.into(), key.into()]
+    } else {
+        vec!["shell".into(), "settings".into(), "put".into(), namespace.into(), key.into(), orig.into()]
+    }
+}
+
+const DEMO: &str = "com.android.systemui.demo";
+
+/// Turn a phone-side helper on or off while mirroring:
+/// - "show_touches": white dots where the screen is touched (visible in recordings)
+/// - "demo": Android's status bar demo mode (12:00, full battery and signal, no
+///   notification icons) for clean screenshots
+/// The original state is saved the first time and restored when turned off or when the
+/// mirror stops, so the phone is never left changed.
+#[tauri::command]
+pub async fn mirror_device_toggle(
+    app: AppHandle,
+    state: State<'_, MirrorState>,
+    kind: String,
+    on: bool,
+) -> Result<(), String> {
+    let adb = resolve_tool(&app, "adb");
+    let mut restore = state.restore.lock().await;
+    let saved = restore.iter().position(|(k, _)| *k == kind);
+
+    if !on {
+        if let Some(i) = saved {
+            let (_, cmds) = restore.remove(i);
+            drop(restore);
+            run_restore(&adb, &cmds).await;
+        }
+        return Ok(());
+    }
+
+    match kind.as_str() {
+        "show_touches" => {
+            if saved.is_none() {
+                let orig = adb_output(&adb, &["shell", "settings", "get", "system", "show_touches"]).await?;
+                restore.push((kind.clone(), vec![restore_setting("system", "show_touches", &orig)]));
+            }
+            run_adb(&adb, &["shell", "settings", "put", "system", "show_touches", "1"]).await
+        }
+        "demo" => {
+            if saved.is_none() {
+                let orig = adb_output(&adb, &["shell", "settings", "get", "global", "sysui_demo_allowed"]).await?;
+                let exit: Vec<String> = ["shell", "am", "broadcast", "-a", DEMO, "-e", "command", "exit"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect();
+                restore.push((kind.clone(), vec![exit, restore_setting("global", "sysui_demo_allowed", &orig)]));
+            }
+            run_adb(&adb, &["shell", "settings", "put", "global", "sysui_demo_allowed", "1"]).await?;
+            let steps: [&[&str]; 6] = [
+                &["-e", "command", "enter"],
+                &["-e", "command", "clock", "-e", "hhmm", "1200"],
+                &["-e", "command", "battery", "-e", "level", "100", "-e", "plugged", "false"],
+                &["-e", "command", "network", "-e", "wifi", "show", "-e", "level", "4"],
+                &["-e", "command", "network", "-e", "mobile", "show", "-e", "datatype", "none", "-e", "level", "4"],
+                &["-e", "command", "notifications", "-e", "visible", "false"],
+            ];
+            for extra in steps {
+                let mut args = vec!["shell", "am", "broadcast", "-a", DEMO];
+                args.extend_from_slice(extra);
+                run_adb(&adb, &args).await?;
+            }
+            Ok(())
+        }
+        other => Err(format!("unknown toggle: {other}")),
+    }
+}
+
 /// Last lines the scrcpy server printed on the phone.
 type ServerLog = Arc<std::sync::Mutex<Vec<String>>>;
 
@@ -902,6 +995,16 @@ mod tests {
         assert!(xml.starts_with("<?xml"));
         assert!(xml.ends_with("</hierarchy>"));
         assert!(extract_hierarchy("no xml here").is_none());
+    }
+
+    #[test]
+    fn settings_are_restored_to_their_original_value() {
+        assert_eq!(restore_setting("system", "show_touches", "null\n"), ["shell", "settings", "delete", "system", "show_touches"]);
+        assert_eq!(restore_setting("global", "sysui_demo_allowed", ""), ["shell", "settings", "delete", "global", "sysui_demo_allowed"]);
+        assert_eq!(
+            restore_setting("system", "show_touches", "0\n"),
+            ["shell", "settings", "put", "system", "show_touches", "0"]
+        );
     }
 
     #[test]

@@ -52,6 +52,7 @@ pub fn run() {
             mirror::mirror_push_file,
             mirror::mirror_open,
             mirror::mirror_reboot,
+            mirror::mirror_device_toggle,
             mirror::mirror_record_start,
             mirror::mirror_record_stop,
             control::mirror_rotate,

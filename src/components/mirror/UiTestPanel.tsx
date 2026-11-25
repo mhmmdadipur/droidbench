@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 import { ask, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
-import { Check, X, Play, Square, Circle, FileDown } from "lucide-react";
+import { Check, X, Play, Square, Circle, FileDown, ListChecks } from "lucide-react";
 import { Button } from "../ui/Button";
 import { AKEY, META } from "../../lib/mirrorKeys";
+import { mirrorLog } from "../../lib/mirrorApi";
 import type { UiTree } from "../../lib/uiInspector";
 import {
   MAX_EXECUTED,
@@ -13,8 +14,12 @@ import {
   findNode,
   parseScript,
   shownText,
+  varErrors,
+  varTable,
+  resolveVars,
   type TestStep,
 } from "../../lib/uiTest";
+import { loadSnippets } from "../../lib/snippets";
 
 const LS_TESTS = "droidbench.mirror.uitests";
 const FIELD =
@@ -33,6 +38,17 @@ interface Result {
   text: string;
   /** nesting level inside jika / ulangi blocks, for indentation */
   depth: number;
+  /** a script title inside a suite run */
+  head?: boolean;
+}
+interface Outcome {
+  ok: boolean;
+  done: number;
+  total: number;
+  /** why it failed ("line N: ..."), empty when it passed */
+  reason: string;
+  /** the script could not start (syntax / unknown variable / empty) */
+  invalid?: boolean;
 }
 
 function loadTests(): SavedTest[] {
@@ -100,7 +116,12 @@ export function UiTestPanel({
   const [summary, setSummary] = useState("");
   const cancel = useRef(false);
   const shotPath = useRef("");
+  const failReason = useRef(""); // "line N: why", for the Command Log
   const startedAt = useRef(0);
+  const vars = useRef<Map<string, string>>(new Map()); // Saved Texts by name, read at the start of a run
+  const runTitle = useRef(""); // what the last run was, for the exported report
+  const [suiteSkip, setSuiteSkip] = useState<Set<string>>(new Set()); // saved scripts left out of the suite
+  const [showSuite, setShowSuite] = useState(false);
 
   function stopped() {
     if (cancel.current) throw new Error("dihentikan");
@@ -139,7 +160,8 @@ export function UiTestPanel({
       case "cek": {
         const { hit } = await locate(s.target, true, CHECK_MS);
         const got = shownText(hit!.node);
-        if (got !== s.value) throw new Error(`${s.target}: isinya "${got}", seharusnya "${s.value}"`);
+        const want = resolveVars(s.value, vars.current).text;
+        if (got !== want) throw new Error(`${s.target}: isinya "${got}", seharusnya "${want}"`);
         return `${s.target} = "${got}"`;
       }
       case "tekan": {
@@ -162,7 +184,8 @@ export function UiTestPanel({
         stopped();
         await onKey(AKEY.A, META.CTRL_ON); // select what is there so the new text replaces it
         await sleep(120);
-        if (s.value) await onType(s.value);
+        const value = resolveVars(s.value, vars.current).text;
+        if (value) await onType(value);
         else await onKey(AKEY.DEL);
         await sleep(300);
         return `isi ${s.target} (${hit!.by})`;
@@ -200,10 +223,12 @@ export function UiTestPanel({
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           add(false, msg);
+          failReason.current = `baris ${st.line}: ${msg}`;
           // keep a picture of what the phone showed when it failed
           if (msg !== "dihentikan") {
             try {
               shotPath.current = await onScreenshot();
+              mirrorLog(`Tes UI: screenshot saat gagal disimpan di ${shotPath.current}`);
               setResults((r) => [...r, { line: st.line, ok: true, text: `screenshot: ${shotPath.current}`, depth }]);
             } catch {
               /* no screenshot: the failure itself is already listed */
@@ -215,43 +240,93 @@ export function UiTestPanel({
     }
   }
 
-  async function run() {
-    const parsed = parseScript(script);
-    if (parsed.errors.length > 0) {
-      setResults(parsed.errors.map((e) => ({ line: e.line, ok: false, text: e.message, depth: 0 })));
-      setSummary("Skrip punya kesalahan, perbaiki dulu.");
-      return;
+  /** Run one script, adding its lines to the results. Never throws. `base` indents a suite member. */
+  async function runScript(text: string, base: number): Promise<Outcome> {
+    const parsed = parseScript(text);
+    const errs = parsed.errors.length > 0 ? parsed.errors : varErrors(parsed.steps, vars.current);
+    if (errs.length > 0) {
+      setResults((r) => [...r, ...errs.map((e) => ({ line: e.line, ok: false, text: e.message, depth: base }))]);
+      return { ok: false, done: 0, total: 0, reason: "skrip punya kesalahan", invalid: true };
     }
-    if (parsed.steps.length === 0) {
-      setSummary("Skrip kosong.");
-      return;
-    }
-    cancel.current = false;
-    shotPath.current = "";
-    startedAt.current = Date.now();
-    setRunning(true);
-    setResults([]);
-    setSummary("");
+    const total = countSteps(parsed.steps);
+    if (total === 0) return { ok: false, done: 0, total: 0, reason: "skrip kosong", invalid: true };
+    failReason.current = "";
     const ctx = { done: 0 };
-    let failed = false;
     try {
-      await runSteps(parsed.steps, 0, ctx);
+      await runSteps(parsed.steps, base, ctx);
+      return { ok: true, done: ctx.done, total, reason: "" };
     } catch (e) {
-      failed = true;
       // a failing leaf step already listed itself; block-level errors (limit, stop) are listed here
       const msg = e instanceof Error ? e.message : String(e);
       if (msg === "dihentikan" || msg.startsWith("terlalu banyak")) {
-        setResults((r) => [...r, { line: 0, ok: false, text: msg, depth: 0 }]);
+        failReason.current = msg;
+        setResults((r) => [...r, { line: 0, ok: false, text: msg, depth: base }]);
       }
+      return { ok: false, done: ctx.done, total, reason: failReason.current || msg };
     }
-    const secs = ((Date.now() - startedAt.current) / 1000).toFixed(1);
-    setSummary(
-      failed
-        ? `GAGAL setelah ${ctx.done} dari ${countSteps(parsed.steps)} langkah (${secs} dtk)`
-        : `LULUS: ${ctx.done} langkah (${secs} dtk)`,
-    );
+  }
+
+  function begin(title: string) {
+    cancel.current = false;
+    shotPath.current = "";
+    failReason.current = "";
+    startedAt.current = Date.now();
+    runTitle.current = title;
+    vars.current = varTable(loadSnippets());
+    setRunning(true);
+    setResults([]);
+    setSummary("");
+  }
+  function end() {
     setRunning(false);
     onFocusPhone();
+  }
+  const elapsed = () => ((Date.now() - startedAt.current) / 1000).toFixed(1);
+
+  async function run() {
+    const title = name.trim() ? `Tes UI "${name.trim()}"` : "Tes UI";
+    begin(title);
+    const out = await runScript(script, 0);
+    if (out.invalid) {
+      setSummary(out.reason === "skrip kosong" ? "Skrip kosong." : "Skrip punya kesalahan, perbaiki dulu.");
+      end();
+      return;
+    }
+    const sum = out.ok
+      ? `LULUS: ${out.done} langkah (${elapsed()} dtk)`
+      : `GAGAL setelah ${out.done} dari ${out.total} langkah (${elapsed()} dtk)`;
+    setSummary(sum);
+    // one line per run in the main Command Log, plus the reason when it failed
+    mirrorLog(`${title}: ${sum}`, out.ok ? "info" : "error");
+    if (!out.ok && out.reason) mirrorLog(`${title}: ${out.reason}`, "error");
+    end();
+  }
+
+  /** Run every checked saved script in order. A failing script does not stop the others. */
+  async function runSuite() {
+    const list = saved.filter((t) => !suiteSkip.has(t.id));
+    if (list.length === 0) return;
+    begin(`Suite (${list.length} skrip)`);
+    let passed = 0;
+    let ran = 0;
+    for (const t of list) {
+      if (cancel.current) break;
+      setResults((r) => [...r, { line: 0, ok: true, text: t.name, depth: 0, head: true }]);
+      const out = await runScript(t.script, 1);
+      ran++;
+      if (out.ok) passed++;
+      mirrorLog(
+        `Suite - "${t.name}": ${out.ok ? `LULUS (${out.done} langkah)` : `GAGAL: ${out.reason}`}`,
+        out.ok ? "info" : "error",
+      );
+    }
+    const stoppedEarly = ran < list.length;
+    const sum = `${passed === list.length ? "LULUS" : "GAGAL"} suite: ${passed} dari ${list.length} skrip lulus${
+      stoppedEarly ? `, ${list.length - ran} tidak dijalankan` : ""
+    } (${elapsed()} dtk)`;
+    setSummary(sum);
+    mirrorLog(sum, passed === list.length ? "info" : "error");
+    end();
   }
 
   /** Save the last run (script, every step, the summary) as a text file. */
@@ -259,17 +334,18 @@ export function UiTestPanel({
     const stamp = new Date(startedAt.current || Date.now()).toISOString();
     const body = [
       "Droidbench UI test report",
-      `Test: ${name.trim() || "(unnamed)"}`,
+      `Test: ${runTitle.current || name.trim() || "(unnamed)"}`,
       `Device: ${deviceName || "-"}`,
       `Started: ${stamp}`,
       `Result: ${summary}`,
       "",
       "Steps:",
-      ...results.map((r) => `${"  ".repeat(r.depth)}${r.ok ? "OK  " : "FAIL"} ${r.line > 0 ? `[line ${r.line}] ` : ""}${r.text}`),
+      ...results.map((r) =>
+        r.head ? `\n== ${r.text}` : `${"  ".repeat(r.depth)}${r.ok ? "OK  " : "FAIL"} ${r.line > 0 ? `[line ${r.line}] ` : ""}${r.text}`,
+      ),
       "",
-      "Script:",
-      script.replace(/\s+$/, ""),
-      "",
+      // a single run includes its script; a suite's scripts are saved in the app already
+      ...(runTitle.current.startsWith("Suite") ? [] : ["Script:", script.replace(/\s+$/, ""), ""]),
     ].join("\n");
     try {
       const path = await saveDialog({
@@ -378,9 +454,62 @@ export function UiTestPanel({
         )}
       </div>
 
+      {saved.length >= 2 && (
+        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]">
+          <button
+            onClick={() => setShowSuite((v) => !v)}
+            className="no-drag flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-[11px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+          >
+            <ListChecks size={12} className="shrink-0 text-[var(--color-brand-600)]" />
+            <span className="min-w-0 flex-1">Suite: jalankan beberapa skrip</span>
+            <span className="text-[10px] text-[var(--color-ink-faint)]">
+              {saved.length - saved.filter((t) => suiteSkip.has(t.id)).length}/{saved.length}
+            </span>
+          </button>
+          {showSuite && (
+            <div className="flex flex-col gap-1 border-t border-[var(--color-border)] px-2 py-1.5">
+              <div className="flex max-h-[140px] flex-col gap-0.5 overflow-y-auto">
+                {saved.map((t) => (
+                  <label key={t.id} className="flex items-center gap-1.5 text-[11px] text-[var(--color-ink-soft)]">
+                    <input
+                      type="checkbox"
+                      checked={!suiteSkip.has(t.id)}
+                      disabled={running}
+                      onChange={(e) =>
+                        setSuiteSkip((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.delete(t.id);
+                          else next.add(t.id);
+                          return next;
+                        })
+                      }
+                      className="accent-[var(--color-brand)]"
+                    />
+                    <span className="min-w-0 truncate">{t.name}</span>
+                  </label>
+                ))}
+              </div>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={!live || running || recording || saved.every((t) => suiteSkip.has(t.id))}
+                onClick={() => void runSuite()}
+              >
+                <Play size={12} className="mr-1" /> Jalankan suite
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {(results.length > 0 || summary) && (
         <div className="selectable flex flex-col gap-0.5 text-[10px] leading-snug">
-          {results.map((r, i) => (
+          {results.map((r, i) =>
+            r.head ? (
+              <div key={i} className="mt-1 font-semibold text-[var(--color-ink)]">
+                {r.text}
+              </div>
+            ) : (
             <div
               key={i}
               style={{ paddingLeft: r.depth * 10 }}
@@ -391,7 +520,8 @@ export function UiTestPanel({
                 {r.line > 0 && <span className="text-[var(--color-ink-faint)]">{r.line}.</span>} {r.text}
               </span>
             </div>
-          ))}
+            ),
+          )}
           {!running && results.length > 0 && summary && !summary.startsWith("Skrip") && (
             <button
               onClick={() => void exportReport()}
